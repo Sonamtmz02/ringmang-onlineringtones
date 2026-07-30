@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="RingMang">
+  <defs>
+    <linearGradient id="gm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6b4a"/><stop offset="1" stop-color="#ffd166"/></linearGradient>
+    <radialGradient id="glowm" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ff6b4a" stop-opacity="0.18"/><stop offset="1" stop-color="#071417" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="#071417"/>
+  <rect width="512" height="512" fill="url(#glowm)"/>
+  <g>
+    <rect x="109" y="190" width="30" height="110" rx="9" fill="url(#gm)"/>
+    <rect x="153" y="120" width="30" height="180" rx="9" fill="url(#gm)"/>
+    <rect x="197" y="210" width="30" height="90"  rx="9" fill="url(#gm)"/>
+    <rect x="241" y="90"  width="30" height="210" rx="9" fill="url(#gm)"/>
+    <rect x="285" y="170" width="30" height="130" rx="9" fill="url(#gm)"/>
+    <rect x="329" y="110" width="30" height="190" rx="9" fill="url(#gm)"/>
+    <rect x="373" y="200" width="30" height="100" rx="9" fill="url(#gm)"/>
+  </g>
+  <text x="256" y="372" text-anchor="middle" font-family="Unbounded, 'Segoe UI', sans-serif" font-weight="700" font-size="34" letter-spacing="5" fill="#cdd8da">RINGMANG</text>
+</svg>
