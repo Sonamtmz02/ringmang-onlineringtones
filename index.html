@@ -67,25 +67,61 @@
     </div>
   </section>
 
-  <!-- CHIPS -->
-  <section class="relative z-10 max-w-5xl mx-auto px-4 pb-2">
-    <div id="category-chips" class="chips-row"><span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span></div>
+  <!-- CATEGORY CHIPS (now interactive) -->
+  <section class="relative z-10 max-w-5xl mx-auto px-4 pt-2 pb-1">
+    <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-gray-600 mb-2">Browse by category</p>
+    <div id="category-chips" class="chips-row" role="tablist" aria-label="Filter by category">
+      <span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span>
+    </div>
   </section>
 
   <!-- LIBRARY -->
   <section id="library" class="relative z-10 max-w-5xl mx-auto px-4 py-8">
-    <div class="flex items-end justify-between gap-4 mb-6">
-      <div><h2 class="font-display font-bold text-2xl text-white">All Ringtones</h2><p class="font-mono text-[11px] text-gray-500 mt-1">Newest first · Tap ▶ to preview</p></div>
-      <span class="font-mono text-[11px] text-gray-500 hidden sm:block"><span id="shown-count">0</span> shown</span>
+
+    <!-- Search Scanner -->
+    <div class="search-deck">
+      <div class="scanner" id="scanner">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <span class="scan-line" id="scan-line" aria-hidden="true"></span>
+        <svg class="mag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+        <input id="search-input" class="search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search by title…" aria-label="Search ringtones by title">
+        <button id="search-clear" class="search-clear hidden" aria-label="Clear search">×</button>
+      </div>
+      <p id="search-hint" class="search-hint" aria-live="polite"></p>
     </div>
+
+    <div class="lib-head flex items-end justify-between gap-4 mb-5">
+      <div><h2 class="font-display font-bold text-2xl text-white">All Ringtones</h2><p class="font-mono text-[11px] text-gray-500 mt-1">Newest first · Tap ▶ to preview</p></div>
+      <span class="font-mono text-[11px] text-gray-500 hidden sm:block"><span id="shown-count">0</span> loaded</span>
+    </div>
+
+    <!-- Active Filter Ribbon -->
+    <div id="filter-ribbon" class="filter-ribbon hidden" role="status">
+      <span class="ribbon-label">FILTERED</span>
+      <span id="ribbon-cat" class="ribbon-pill hidden"></span>
+      <span id="ribbon-q" class="ribbon-pill hidden"></span>
+      <button id="ribbon-clear" class="ribbon-clear">Clear all ×</button>
+    </div>
+
     <div id="ringtone-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <div class="card-skeleton"></div><div class="card-skeleton"></div><div class="card-skeleton"></div>
       <div class="card-skeleton"></div><div class="card-skeleton"></div><div class="card-skeleton"></div>
     </div>
+
+    <!-- Empty: no content at all -->
     <div id="empty-state" class="hidden text-center py-16">
       <div class="eq-mini mx-auto mb-4 opacity-40"><span></span><span></span><span></span><span></span></div>
       <p class="text-gray-400 font-medium">No ringtones yet.</p><p class="text-gray-600 text-sm mt-1">Check back soon — fresh sounds are on the way.</p>
     </div>
+
+    <!-- Empty: filter matched nothing -->
+    <div id="filter-empty" class="hidden text-center py-14">
+      <div class="fe-frame"><span class="fe-glyph">∅</span></div>
+      <p class="fe-title">No matches in the crate</p>
+      <p id="fe-sub" class="fe-sub">Try a different search or category.</p>
+      <button id="fe-clear" class="btn-outline" style="margin-top:1.25rem">Clear filters</button>
+    </div>
+
     <div class="text-center mt-8"><button id="load-more-btn" class="btn-outline hidden">Load More Ringtones</button></div>
   </section>
 
@@ -99,7 +135,7 @@
     </div>
   </footer>
 
-  <!-- ===== PLAYER MODAL ===== -->
+  <!-- PLAYER MODAL -->
   <div id="player-modal" class="player-overlay hidden" role="dialog" aria-modal="true" aria-label="Audio player">
     <div class="player-shell">
       <button id="player-close" class="x-btn" aria-label="Close player">×</button>
@@ -128,13 +164,12 @@
     </div>
   </div>
 
-  <!-- ===== DOWNLOAD MODAL ===== -->
+  <!-- DOWNLOAD MODAL -->
   <div id="dl-modal" class="dl-overlay hidden" role="dialog" aria-modal="true" aria-label="Download ringtone">
     <div class="dl-shell">
       <button id="dl-close" class="x-btn" aria-label="Close">×</button>
       <h3 class="dl-title">Preparing Download</h3>
       <p id="dl-track" class="dl-track">—</p>
-
       <div id="dl-countdown-phase">
         <div class="dl-ad-slot" aria-label="Advertisement placeholder"><span class="dl-ad-tag">AD</span><p class="dl-ad-text">Sponsored space<br><span>Ad network activates in Phase 10</span></p></div>
         <div class="dl-ring-wrap">
@@ -143,18 +178,15 @@
         </div>
         <p class="dl-hint">Please wait for the countdown…</p>
       </div>
-
       <div id="dl-progress-phase" class="hidden">
         <div class="dl-prog-track"><div id="dl-prog-bar" class="dl-prog-bar"></div></div>
         <p id="dl-prog-text" class="dl-prog-text">Fetching from secure storage…</p>
       </div>
-
       <div id="dl-done-phase" class="hidden">
         <div class="dl-check">✓</div>
         <p class="dl-done-text">Saved to your device!</p>
         <p class="dl-done-sub">Check your Downloads folder.</p>
       </div>
-
       <button id="dl-action" class="dl-action-btn" disabled>Please wait…</button>
     </div>
   </div>
