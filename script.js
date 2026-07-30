@@ -223,8 +223,14 @@ el.loadMoreBtn.addEventListener("click",()=>{el.loadMoreBtn.disabled=true;el.loa
 // ===== Injected player share + home SEO (Phase 9) =====
 (function(){if(!el.playerShell)return;const b=document.createElement("button");b.type="button";b.className="player-share-btn";b.textContent="⤴ Share this ringtone";el.playerShell.appendChild(b);
  b.addEventListener("click",function(){const id=Audio_.currentId;if(!id){showToast("Play a ringtone first to share it.");return}doShare(id,slugify(el.playerTitle.textContent||""),el.playerTitle.textContent||"RingMang ringtone")})})();
-(function homeSeo(){try{const o=location.origin;const lc=document.createElement("link");lc.rel="canonical";lc.href=o+"/";document.head.appendChild(lc);
- const ld=document.createElement("script");ld.type="application/ld+json";ld.textContent=JSON.stringify({"@context":"https://schema.org","@type":"WebSite","name":"RingMang","url":o+"/","potentialAction":{"@type":"SearchAction","target":o+"/?q={search_term_string}","query-input":"required name=search_term_string"}});document.head.appendChild(ld)}catch(e){}})();
+(function homeSeo(){try{const o=location.origin;
+ const lc=document.createElement("link");lc.rel="canonical";lc.href=o+"/";document.head.appendChild(lc);
+ // CWV: preconnect + dns-prefetch to Supabase (first data fetch छिटो -> FCP/LCP adjacent gain)
+ try{const su=String((window.RINGMANG_CONFIG&&window.RINGMANG_CONFIG.SUPABASE_URL)||"");if(su){const u=new URL(su);const dp=document.createElement("link");dp.rel="dns-prefetch";dp.href="//"+u.host;document.head.appendChild(dp);const pc=document.createElement("link");pc.rel="preconnect";pc.href=u.origin;pc.crossOrigin="";document.head.appendChild(pc)}}catch(_){}
+ const add=(obj)=>{const s=document.createElement("script");s.type="application/ld+json";s.textContent=JSON.stringify(obj);document.head.appendChild(s)};
+ add({"@context":"https://schema.org","@type":"WebSite","name":"RingMang","url":o+"/","potentialAction":{"@type":"SearchAction","target":o+"/?q={search_term_string}","query-input":"required name=search_term_string"}});
+ add({"@context":"https://schema.org","@type":"Organization","name":"RingMang","url":o+"/","logo":o+"/icon.svg","description":"Free ringtones — browse, preview and download original beats and movie clips, no sign-up.","sameAs":[]});
+ }catch(e){}})();
 
 // ===== Boot =====
 document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())return;
