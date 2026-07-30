@@ -40,7 +40,7 @@ function countUp(tEl,target,dur=1300){if(!tEl)return;const st=performance.now();
 const revealObserver=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("revealed");revealObserver.unobserve(e.target)}})},{threshold:0.08});
 function waveSpans(seed){let b="";for(let i=0;i<14;i++){const h=25+Math.abs(Math.sin(seed*3.7+i*1.3))*75;b+=`<span style="height:${Math.round(h)}%"></span>`}return b}
 function slugify(s){return String(s||"").toLowerCase().trim().replace(/[^a-z0-9\s-]/g,"").replace(/[\s-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60)||"ringtone"}
-function shareUrl(id,slug){return location.origin+"/r/"+encodeURIComponent(id)+"/"+encodeURIComponent(slug||"ringtone")}
+function shareUrl(id,slug){return location.origin+"/ringtone/"+encodeURIComponent(slug||"ringtone")}
 async function doShare(id,slug,title){const url=shareUrl(id,slug);const text=(title||"RingMang")+" — free ringtone on RingMang";
  try{if(navigator.share){await navigator.share({title:title||"RingMang",text,url});return}}catch(e){}
  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(url);showToast("🔗 Share link copied!");return}}catch(e){}
