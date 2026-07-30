@@ -111,7 +111,7 @@ export async function onRequestGet(context){
   +'<main class="wrap">'
   +'<div class="opener"><div class="kicker"><span class="ln"></span>RIGHTS HOLDERS · DMCA / COPYRIGHT</div>'
   +'<h1>Report infringing content</h1>'
-  +'<p class="lede">यदि तपाईंको copyrighted work अनुमति बिना RingMang मा छ भने, तलको form बाट takedown notice पठाउनुहोस् — हामी valid notice मा छिटो कार्य गर्छौं। (The form labels and policy below are in standard English for legal precision.)</p>'
+  +'<p class="lede">If your copyrighted work appears on RingMang without permission, use the form below to send a takedown notice — we review valid notices and act promptly. (You may write your notice in any language; the field labels are in English for legal precision.)</p>'
   +'<div class="meta-row"><span class="meta-pill"><span class="d"></span>Reviewed <b>promptly</b></span><span class="meta-pill">No account <b>needed</b></span><span class="meta-pill">Good-faith <b>process</b></span></div>'
   +'</div>'
   +'<div class="grid2">'
