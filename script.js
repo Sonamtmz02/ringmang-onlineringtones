@@ -1,6 +1,7 @@
 /**
- * RingMang Users Panel — Phase 6 (Home/List) + Phase 7 (Player + Silent Download)
+ * RingMang Users Panel — Phase 6 (Home/List) + Phase 7 (Player + Silent Download) + Phase 8 (Search + Category Filter)
  * Public read via RLS. Audio via Edge Function signed URL. No new tab on download.
+ * Search = server-side ilike on title (debounced). Category = client chip -> eq filter. URL state via replaceState.
  */
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY, APP_NAME, PAGE_SIZE } = window.RINGMANG_CONFIG || {};
@@ -8,7 +9,10 @@ const $ = (id) => document.getElementById(id);
 const el = {
   topbarCount:$("topbar-count"), tickerTrack:$("ticker-track"),
   statRingtones:$("stat-ringtones"), statDownloads:$("stat-downloads"), statCategories:$("stat-categories"),
-  categoryChips:$("category-chips"), grid:$("ringtone-grid"), emptyState:$("empty-state"),
+  categoryChips:$("category-chips"),
+  library:$("library"), scanner:$("scanner"), searchInput:$("search-input"), searchClear:$("search-clear"), searchHint:$("search-hint"),
+  filterRibbon:$("filter-ribbon"), ribbonCat:$("ribbon-cat"), ribbonQ:$("ribbon-q"), ribbonClear:$("ribbon-clear"),
+  grid:$("ringtone-grid"), emptyState:$("empty-state"), filterEmpty:$("filter-empty"), feSub:$("fe-sub"), feClear:$("fe-clear"),
   shownCount:$("shown-count"), loadMoreBtn:$("load-more-btn"), toast:$("toast"), toastMessage:$("toast-message"),
   playerModal:$("player-modal"), playerClose:$("player-close"), playerViz:$("player-viz"),
   playerCat:$("player-cat"), playerTitle:$("player-title"), playerArtist:$("player-artist"),
@@ -22,8 +26,14 @@ const el = {
 };
 el.playerShell = el.playerModal ? el.playerModal.querySelector(".player-shell") : null;
 
+// ===== Filter state (Phase 8) =====
+const filter = { q:"", catId:null, catName:null, catSlug:null };
+const filterActive = () => !!(filter.q || filter.catId);
+let ringtoneOffset = 0;
+
 // ===== Utilities =====
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function cssEscapeAttr(s){ return String(s).replace(/["\\]/g,"\\$&"); }
 function formatBytes(b){ if(b<1024)return b+" B"; if(b<1048576)return (b/1024).toFixed(1)+" KB"; return (b/1048576).toFixed(2)+" MB"; }
 function formatCount(n){ if(n>=1000000)return (n/1000000).toFixed(1)+"M"; if(n>=1000)return (n/1000).toFixed(1)+"K"; return String(n); }
 function fmtTime(s){ if(!isFinite(s)||s<0)s=0; return Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0"); }
@@ -60,6 +70,58 @@ async function fetchSigned(id,intent){
   return data;
 }
 
+// ===== URL state (Phase 8) =====
+function updateURL(){
+  const p=new URLSearchParams();
+  if(filter.q) p.set("q",filter.q);
+  if(filter.catId&&filter.catSlug) p.set("cat",filter.catSlug);
+  const qs=p.toString();
+  const url=location.pathname+(qs?("?"+qs):"")+(location.hash||"");
+  try{ history.replaceState(null,"",url); }catch{}
+}
+function readURL(){
+  const p=new URLSearchParams(location.search);
+  const q=p.get("q")||"", catSlug=p.get("cat")||"";
+  filter.q=q;
+  if(q){ el.searchInput.value=q; el.searchClear.classList.remove("hidden"); }
+  if(catSlug){
+    const btn=el.categoryChips.querySelector(`.chip[data-slug="${cssEscapeAttr(catSlug)}"]`);
+    if(btn){ filter.catId=btn.dataset.id; filter.catName=btn.dataset.name; filter.catSlug=catSlug; }
+  }
+  markActiveChip(filter.catId);
+  updateRibbon();
+}
+
+// ===== Filter UI sync (Phase 8) =====
+function markActiveChip(id){
+  el.categoryChips.querySelectorAll(".chip").forEach(c=>{
+    c.classList.toggle("active", id ? c.dataset.id===id : c.dataset.id==="all");
+  });
+}
+function updateRibbon(){
+  const active=filterActive();
+  el.filterRibbon.classList.toggle("hidden",!active);
+  if(filter.catId){ el.ribbonCat.classList.remove("hidden"); el.ribbonCat.textContent="▤ "+(filter.catName||"Category"); } else el.ribbonCat.classList.add("hidden");
+  if(filter.q){ el.ribbonQ.classList.remove("hidden"); el.ribbonQ.textContent='🔍 "'+filter.q+'"'; } else el.ribbonQ.classList.add("hidden");
+}
+function setScanning(on){ el.scanner.classList.toggle("scanning",on); }
+async function applyFilter(opts={}){
+  ringtoneOffset=0;
+  if(!opts.fromURL) updateURL();
+  updateRibbon();
+  markActiveChip(filter.catId);
+  setScanning(true);
+  el.searchHint.innerHTML='<span class="hl">Scanning the library…</span>';
+  await loadRingtones(false);
+  setScanning(false);
+  if(opts.scroll&&el.library) el.library.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function clearAll(){
+  filter.q=""; filter.catId=null; filter.catName=null; filter.catSlug=null;
+  el.searchInput.value=""; el.searchClear.classList.add("hidden");
+  applyFilter();
+}
+
 // ===== Audio Manager (single instance + visualizer) =====
 const Audio_ = {
   el:null, ctx:null, srcNode:null, analyser:null, freq:null, useReal:false, graphReady:false,
@@ -93,8 +155,8 @@ const Audio_ = {
     if(this.currentBtn) this.currentBtn.classList.toggle("is-active",on);
     if(!on){ cancelAnimationFrame(this.raf); } },
   async load(id,meta,btn){ this.init(); this.buildViz();
-    if(this.currentId===id&&!this.el.paused){ this.el.pause(); return; }      // toggle off
-    if(this.currentId===id&&this.el.paused){ this.el.play().catch(()=>{}); this.currentBtn=btn; return; } // resume
+    if(this.currentId===id&&!this.el.paused){ this.el.pause(); return; }
+    if(this.currentId===id&&this.el.paused){ this.el.play().catch(()=>{}); this.currentBtn=btn; return; }
     this.currentBtn=btn; this.currentId=id;
     el.playerTitle.textContent=meta.title; el.playerArtist.textContent=meta.artist; el.playerCat.textContent=meta.cat;
     el.playerCur.textContent="0:00"; el.playerDur.textContent="0:00"; el.playerBar.value=0;
@@ -110,11 +172,10 @@ const Audio_ = {
 };
 let seeking=false;
 
-// ===== Player modal open/close =====
 function openPlayer(id,meta,btn){ Audio_.load(id,meta,btn); el.playerModal.classList.remove("hidden"); document.body.style.overflow="hidden"; }
 function closePlayer(){ el.playerModal.classList.add("hidden"); document.body.style.overflow=""; }
 
-// ===== Download flow (countdown → click → blob → hidden anchor) =====
+// ===== Download flow =====
 let dlState="idle", dlCurrentId=null, dlCurrentTitle="";
 const RING_CIRC=276.46;
 function openDlModal(id,title){ dlCurrentId=id; dlCurrentTitle=title; dlState="countdown";
@@ -133,9 +194,7 @@ function runCountdown(n){ el.dlCount.textContent=n; el.dlRingFg.style.strokeDash
     n--; setTimeout(tick,1000); };
   tick();
 }
-// helper attached for clarity
 el.dlStateReady=()=>{ dlState="ready"; el.dlCount.textContent="✓"; el.dlAction.disabled=false; el.dlAction.textContent="⬇ Download Now"; };
-
 async function beginDownloadFetch(){ if(dlState!=="ready"||!dlCurrentId)return; dlState="fetching";
   el.dlCountdownPhase.classList.add("hidden"); el.dlProgressPhase.classList.remove("hidden");
   el.dlProgBar.style.width="0%"; el.dlProgBar.classList.remove("indet"); el.dlProgText.textContent="Preparing secure link…";
@@ -153,7 +212,6 @@ async function beginDownloadFetch(){ if(dlState!=="ready"||!dlCurrentId)return; 
     const blob=new Blob(chunks,{ type:meta.mime_type||"audio/mpeg" });
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=safeName(dlCurrentTitle,extFromMime(meta.mime_type));
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
-    // done
     dlState="done"; el.dlProgressPhase.classList.add("hidden"); el.dlDonePhase.classList.remove("hidden");
     el.dlAction.disabled=false; el.dlAction.textContent="Close"; showToast(`✓ "${dlCurrentTitle}" save भयो!`);
     refreshStatsQuiet();
@@ -161,7 +219,7 @@ async function beginDownloadFetch(){ if(dlState!=="ready"||!dlCurrentId)return; 
 }
 async function refreshStatsQuiet(){ try{ const {count}=await supabaseClient.from("ringtones").select("*",{count:"exact",head:true}); if(count!=null)el.topbarCount.textContent=count; }catch{} }
 
-// ===== Phase 6: Ticker / Stats / Chips / Cards =====
+// ===== Ticker / Stats =====
 async function loadTicker(){ try{ const {data,error}=await supabaseClient.from("ringtones").select("title, download_count").order("download_count",{ascending:false}).limit(10);
     if(error)throw error; if(!data||!data.length){ el.tickerTrack.innerHTML='<span class="font-mono text-xs text-gray-500 py-2.5">Fresh ringtones dropping soon…</span>'; return; }
     const items=data.map(r=>`<span class="ticker-item"><span class="t-title">${escapeHtml(r.title)}</span><span class="t-count">▲ ${formatCount(r.download_count||0)}</span><span class="t-sep">◆</span></span>`).join("");
@@ -172,11 +230,17 @@ async function loadStats(){ try{ const [{count:rCount},{count:cCount},{data:dlRo
       supabaseClient.from("ringtones").select("download_count")]);
     const totalDl=(dlRows||[]).reduce((s,r)=>s+(r.download_count||0),0);
     el.topbarCount.textContent=rCount||0; countUp(el.statRingtones,rCount||0); countUp(el.statDownloads,totalDl); countUp(el.statCategories,cCount||0); }catch(e){ showToast("Stats load भएन: "+e.message); } }
-async function loadCategoryChips(){ try{ const {data:cats}=await supabaseClient.from("categories").select("id, name").order("name");
-    const {data:rings}=await supabaseClient.from("ringtones").select("category_id"); const cm={}; (rings||[]).forEach(r=>{ if(r.category_id)cm[r.category_id]=(cm[r.category_id]||0)+1; });
-    if(!cats||!cats.length){ el.categoryChips.innerHTML='<span class="font-mono text-[11px] text-gray-600 py-2">Categories coming soon…</span>'; return; }
-    el.categoryChips.innerHTML=cats.map(c=>`<span class="chip">${escapeHtml(c.name)}<span class="chip-count">${cm[c.id]||0}</span></span>`).join(""); }catch{ el.categoryChips.innerHTML='<span class="font-mono text-[11px] text-gray-600 py-2">Categories unavailable</span>'; } }
 
+// ===== Category Chips (interactive, Phase 8) =====
+async function loadCategoryChips(){ try{ const {data:cats}=await supabaseClient.from("categories").select("id, name, slug").order("name");
+    const {data:rings}=await supabaseClient.from("ringtones").select("category_id"); const cm={}; (rings||[]).forEach(r=>{ if(r.category_id)cm[r.category_id]=(cm[r.category_id]||0)+1; });
+    const total=(rings||[]).length;
+    if(!cats||!cats.length){ el.categoryChips.innerHTML='<button class="chip active" data-id="all">All<span class="chip-count">'+total+'</span></button><span class="font-mono text-[11px] text-gray-600 py-2 ml-2">Categories coming soon…</span>'; return; }
+    const allChip=`<button class="chip ${!filter.catId?'active':''}" data-id="all">All<span class="chip-count">${total}</span></button>`;
+    const catChips=cats.map(c=>`<button class="chip ${filter.catId===c.id?'active':''}" data-id="${c.id}" data-slug="${escapeHtml(c.slug)}" data-name="${escapeHtml(c.name)}">${escapeHtml(c.name)}<span class="chip-count">${cm[c.id]||0}</span></button>`).join("");
+    el.categoryChips.innerHTML=allChip+catChips; }catch{ el.categoryChips.innerHTML='<span class="font-mono text-[11px] text-gray-600 py-2">Categories unavailable</span>'; } }
+
+// ===== Ringtone Card =====
 function renderCard(r,idx){ const isCopy=r.copyright_status==="copyrighted";
   const artist=r.artists?.name||"Unknown Artist", cat=r.categories?.name||"Uncategorized";
   const card=document.createElement("div"); card.className="ring-card"; card.style.transitionDelay=`${(idx%PAGE_SIZE)*40}ms`;
@@ -186,22 +250,68 @@ function renderCard(r,idx){ const isCopy=r.copyright_status==="copyrighted";
     <div class="card-actions"><button class="btn-play" data-id="${r.id}" data-title="${escapeHtml(r.title)}" data-artist="${escapeHtml(artist)}" data-cat="${escapeHtml(cat)}">▶ Play</button><button class="btn-download" data-id="${r.id}" data-title="${escapeHtml(r.title)}">⬇ Get</button></div>`;
   return card;
 }
-let ringtoneOffset=0,totalRingtones=0;
+
+// ===== Load Ringtones (with filters, Phase 8) =====
 async function loadRingtones(append=false){ if(!append)el.grid.innerHTML='<div class="card-skeleton"></div>'.repeat(6);
   try{ const from=ringtoneOffset,to=from+PAGE_SIZE-1;
-    const {data,error,count}=await supabaseClient.from("ringtones").select("*, categories(name, slug), artists(name, slug)",{count:"exact"}).order("created_at",{ascending:false}).range(from,to);
-    if(error)throw error; totalRingtones=count||0; el.topbarCount.textContent=totalRingtones; if(!append)el.grid.innerHTML="";
-    if(!data||!data.length){ if(totalRingtones===0){ el.emptyState.classList.remove("hidden"); el.loadMoreBtn.classList.add("hidden"); } return; }
-    el.emptyState.classList.add("hidden"); data.forEach((r,i)=>{ const c=renderCard(r,from+i); el.grid.appendChild(c); revealObserver.observe(c); });
+    let query=supabaseClient.from("ringtones").select("*, categories(name, slug), artists(name, slug)",{count:"exact"});
+    if(filter.catId) query=query.eq("category_id",filter.catId);
+    if(filter.q) query=query.ilike("title",`%${filter.q}%`);
+    query=query.order("created_at",{ascending:false}).range(from,to);
+    const {data,error,count}=await query;
+    if(error)throw error;
+    const matchCount=count||0;
+    if(!append)el.grid.innerHTML="";
+    if(!data||!data.length){
+      if(filterActive()){ el.filterEmpty.classList.remove("hidden"); el.emptyState.classList.add("hidden");
+        el.feSub.textContent=filter.q?`Nothing found for "${filter.q}".`:"No ringtones in this category yet."; }
+      else { el.emptyState.classList.remove("hidden"); el.filterEmpty.classList.add("hidden"); }
+      el.loadMoreBtn.classList.add("hidden"); el.shownCount.textContent=ringtoneOffset;
+      updateHint(matchCount); return;
+    }
+    el.emptyState.classList.add("hidden"); el.filterEmpty.classList.add("hidden");
+    data.forEach((r,i)=>{ const c=renderCard(r,from+i); el.grid.appendChild(c); revealObserver.observe(c); });
     ringtoneOffset+=data.length; el.shownCount.textContent=ringtoneOffset;
-    if(ringtoneOffset<totalRingtones)el.loadMoreBtn.classList.remove("hidden"); else el.loadMoreBtn.classList.add("hidden");
-  }catch(e){ if(!append)el.grid.innerHTML='<p class="col-span-full text-center text-gray-500 py-10">Ringtones load भएनन्।</p>'; showToast("Ringtones load भएन: "+e.message); } }
+    if(ringtoneOffset<matchCount)el.loadMoreBtn.classList.remove("hidden"); else el.loadMoreBtn.classList.add("hidden");
+    updateHint(matchCount);
+  }catch(e){ if(!append)el.grid.innerHTML='<p class="col-span-full text-center text-gray-500 py-10">Ringtones load भएनन्।</p>'; showToast("Ringtones load भएन: "+e.message); el.searchHint.innerHTML=""; } }
 
-// ===== Card actions → Player / Download =====
+function updateHint(matchCount){
+  if(filterActive()){
+    el.searchHint.innerHTML=`<b>${matchCount}</b> match${matchCount===1?"":"es"}${filter.q?` for "<span class="hl">${escapeHtml(filter.q)}</span>"`:""}${filter.catName?` in <span class="hl">${escapeHtml(filter.catName)}</span>`:""}`;
+  }else{
+    el.searchHint.innerHTML=`Browse the full library · <b>${matchCount}</b> ringtones · newest first`;
+  }
+}
+
+// ===== Card actions =====
 el.grid.addEventListener("click",(e)=>{ const btn=e.target.closest(".btn-play, .btn-download"); if(!btn)return;
   const id=btn.dataset.id, title=btn.dataset.title;
   if(btn.classList.contains("btn-play")){ openPlayer(id,{ title, artist:btn.dataset.artist, cat:btn.dataset.cat },btn); }
   else { openDlModal(id,title); } });
+
+// ===== Search input (debounced, Phase 8) =====
+let searchTimer;
+el.searchInput.addEventListener("input",(e)=>{
+  const v=e.target.value;
+  el.searchClear.classList.toggle("hidden",v.length===0);
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>{ filter.q=v.trim(); applyFilter(); },320);
+});
+el.searchInput.addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ el.searchInput.value=""; filter.q=""; el.searchClear.classList.add("hidden"); applyFilter(); } });
+el.searchClear.addEventListener("click",()=>{ el.searchInput.value=""; filter.q=""; el.searchClear.classList.add("hidden"); el.searchInput.focus(); applyFilter(); });
+
+// ===== Chip clicks (Phase 8) =====
+el.categoryChips.addEventListener("click",(e)=>{ const btn=e.target.closest(".chip"); if(!btn||btn.dataset.id===undefined)return;
+  const id=btn.dataset.id;
+  if(id==="all"){ filter.catId=null; filter.catName=null; filter.catSlug=null; }
+  else { filter.catId=id; filter.catName=btn.dataset.name; filter.catSlug=btn.dataset.slug; }
+  applyFilter({scroll:true});
+});
+
+// ===== Ribbon / filter-empty clear =====
+el.ribbonClear.addEventListener("click",clearAll);
+el.feClear.addEventListener("click",clearAll);
 
 // ===== Player controls =====
 el.playerClose.addEventListener("click",closePlayer);
@@ -223,4 +333,10 @@ el.dlAction.addEventListener("click",()=>{ if(dlState==="ready")beginDownloadFet
 el.loadMoreBtn.addEventListener("click",()=>{ el.loadMoreBtn.disabled=true; el.loadMoreBtn.textContent="Loading…"; loadRingtones(true).finally(()=>{ el.loadMoreBtn.disabled=false; el.loadMoreBtn.textContent="Load More Ringtones"; }); });
 
 // ===== Boot =====
-document.addEventListener("DOMContentLoaded",()=>{ if(!createSafeClient())return; loadTicker(); loadStats(); loadCategoryChips(); loadRingtones(false); });
+document.addEventListener("DOMContentLoaded",async ()=>{
+  if(!createSafeClient())return;
+  loadTicker(); loadStats();
+  await loadCategoryChips();   // build chips first so URL slug can resolve
+  readURL();                   // apply ?q / ?cat from address bar
+  loadRingtones(false);
+});
