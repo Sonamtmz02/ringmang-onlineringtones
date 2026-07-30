@@ -297,9 +297,10 @@ function updateHint(matchCount){
 }
 
 // ===== Card actions =====
-el.grid.addEventListener("click",(e)=>{ const btn=e.target.closest(".btn-play, .btn-download"); if(!btn)return;
+el.grid.addEventListener("click",(e)=>{ const btn=e.target.closest(".btn-play, .btn-download, .btn-share"); if(!btn)return;
   const id=btn.dataset.id, title=btn.dataset.title;
   if(btn.classList.contains("btn-play")){ openPlayer(id,{ title, artist:btn.dataset.artist, cat:btn.dataset.cat },btn); }
+  else if(btn.classList.contains("btn-share")){ doShare(id, btn.dataset.slug||slugify(title), title); }
   else { openDlModal(id,title); } });
 
 // ===== Search input (debounced, Phase 8) =====
