@@ -179,6 +179,7 @@ export async function onRequestGet(context){
  const bySlug=await getJSON(SUPA,KEY,"ringtones?seo_slug=eq."+enc(raw)+"&select="+enc(SELECT)+"&limit=1");
  if(Array.isArray(bySlug)&&bySlug[0])row=bySlug[0];
  if(!row&&candShort){const bySid=await getJSON(SUPA,KEY,"ringtones?short_id=eq."+enc(candShort)+"&select="+enc(SELECT)+"&limit=1");if(Array.isArray(bySid)&&bySid[0]){row=bySid[0];byShort=true}}
+ if(!row){const safeLike=raw.replace(/[^a-z0-9-]/g,"");if(safeLike.length>=4){const byLk=await getJSON(SUPA,KEY,"ringtones?seo_slug=like."+enc(safeLike)+"-________&order=created_at.desc&select="+enc(SELECT)+"&limit=1");if(Array.isArray(byLk)&&byLk[0])row=byLk[0]}}
  if(!row)return notFound(origin);
  if(byShort&&raw!==row.seo_slug){return new Response(null,{status:301,headers:{Location:origin+"/ringtone/"+enc(row.seo_slug),"Cache-Control":"public, max-age=86400"}})}
 
