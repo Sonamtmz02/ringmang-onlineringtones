@@ -328,7 +328,7 @@ export async function onRequestGet(context) {
     + (artistTracks.length ? '<section class="rail"><h2><span class="bar" style="background:#4cc9f0;box-shadow:0 0 8px rgba(76,201,240,.6)"></span>More from ' + escHtml(artist) + '</h2><div class="scroller">' + rcards(artistTracks) + '</div></section>' : '')
     + '</main>'
     + '<footer class="foot"><div class="wrap foot-in"><div class="wm2">Ring<span style="color:#ff6b4a">Mang</span></div><p><strong style="color:#7c8d90">Copyright &amp; DMCA:</strong> RingMang respects intellectual property rights. Content marked © Copyrighted is shared for preview and promotional purposes. If you believe your copyright has been infringed, submit a DMCA takedown request and we will promptly review it. <a href="' + origin + '/">RingMang home</a></p></div></footer>'
-    + '<audio id="pa" preload="none"></audio>'
+    + '<audio id="pa" preload="none" crossorigin="anonymous"></audio>'
     + '<script>' + CLIENT + '</script>'
     + '</body></html>';
 
