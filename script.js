@@ -345,6 +345,21 @@ el.dlAction.addEventListener("click",()=>{ if(dlState==="ready")beginDownloadFet
 // ===== Load More =====
 el.loadMoreBtn.addEventListener("click",()=>{ el.loadMoreBtn.disabled=true; el.loadMoreBtn.textContent="Loading…"; loadRingtones(true).finally(()=>{ el.loadMoreBtn.disabled=false; el.loadMoreBtn.textContent="Load More Ringtones"; }); });
 
+// ===== Player share button (injected; index.html body untouched) =====
+(function(){ if(!el.playerShell)return;
+  const b=document.createElement("button"); b.type="button"; b.className="player-share-btn"; b.textContent="⤴ Share this ringtone";
+  el.playerShell.appendChild(b);
+  b.addEventListener("click",function(){ const id=Audio_.currentId; if(!id){ showToast("Play a ringtone first to share it."); return; } doShare(id, slugify(el.playerTitle.textContent||""), el.playerTitle.textContent||"RingMang ringtone"); });
+})();
+
+// ===== Home SEO: canonical + WebSite JSON-LD (domain from runtime, never hardcoded) =====
+(function homeSeo(){ try{ const o=location.origin;
+  const lc=document.createElement("link"); lc.rel="canonical"; lc.href=o+"/"; document.head.appendChild(lc);
+  const ld=document.createElement("script"); ld.type="application/ld+json";
+  ld.textContent=JSON.stringify({"@context":"https://schema.org","@type":"WebSite","name":"RingMang","url":o+"/","potentialAction":{"@type":"SearchAction","target":o+"/?q={search_term_string}","query-input":"required name=search_term_string"}});
+  document.head.appendChild(ld);
+}catch(e){} })();
+
 // ===== Boot =====
 document.addEventListener("DOMContentLoaded",async ()=>{
   if(!createSafeClient())return;
