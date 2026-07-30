@@ -179,7 +179,7 @@ async function loadCategoryChips(){try{const{data:cats}=await supabaseClient.fro
 function renderCard(r,idx){const isCopy=r.copyright_status==="copyrighted";const artist=r.artists?.name||"Unknown Artist",cat=r.categories?.name||"Uncategorized";
  const card=document.createElement("div");card.className="ring-card";card.style.transitionDelay=`${(idx%PAGE_SIZE)*40}ms`;
  card.innerHTML=`<div class="card-wave" aria-hidden="true">${waveSpans(idx+r.title.length)}</div>
-  <div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="card-title truncate">${escHtml(r.title)}</p><p class="card-sub truncate">${escHtml(artist)} · ${escHtml(cat)}</p></div>${isCopy?'<span class="badge-copy">©</span>':'<span class="badge-orig">FREE</span>'}</div>
+  <div class="flex items-start justify-between gap-3"><div class="min-w-0"><a class="card-title truncate" href="/ringtone/${escHtml(r.seo_slug||slugify(r.title))}">${escHtml(r.title)}</a><p class="card-sub truncate">${escHtml(artist)} · ${escHtml(cat)}</p></div>${isCopy?'<span class="badge-copy">©</span>':'<span class="badge-orig">FREE</span>'}</div>
   <div class="card-meta"><span>${formatBytes(r.file_size_bytes)}</span><span class="dl">⬇ ${formatCount(r.download_count||0)}</span></div>
   <div class="card-actions"><button class="btn-play" data-id="${r.id}" data-title="${escHtml(r.title)}" data-artist="${escHtml(artist)}" data-cat="${escHtml(cat)}">▶ Play</button><button class="btn-download" data-id="${r.id}" data-title="${escHtml(r.title)}">⬇ Get</button><button class="btn-share" data-id="${r.id}" data-title="${escHtml(r.title)}" data-slug="${escHtml(slugify(r.title))}" aria-label="Share">⤴</button></div>`;
  return card}
