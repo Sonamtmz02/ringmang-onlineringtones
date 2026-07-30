@@ -1,0 +1,19 @@
+{
+  "name": "RingMang — Free Ringtones Download",
+  "short_name": "RingMang",
+  "description": "Browse, preview & download free ringtones — original beats, movie clips & more. No sign-up.",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#071417",
+  "theme_color": "#071417",
+  "lang": "en",
+  "categories": ["music", "entertainment", "lifestyle"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
