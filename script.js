@@ -259,7 +259,7 @@ function renderCard(r,idx){ const isCopy=r.copyright_status==="copyrighted";
   card.innerHTML=`<div class="card-wave" aria-hidden="true">${waveSpans(idx+r.title.length)}</div>
     <div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="card-title truncate">${escapeHtml(r.title)}</p><p class="card-sub truncate">${escapeHtml(artist)} · ${escapeHtml(cat)}</p></div>${isCopy?'<span class="badge-copy">©</span>':'<span class="badge-orig">FREE</span>'}</div>
     <div class="card-meta"><span>${formatBytes(r.file_size_bytes)}</span><span class="dl">⬇ ${formatCount(r.download_count||0)}</span></div>
-    <div class="card-actions"><button class="btn-play" data-id="${r.id}" data-title="${escapeHtml(r.title)}" data-artist="${escapeHtml(artist)}" data-cat="${escapeHtml(cat)}">▶ Play</button><button class="btn-download" data-id="${r.id}" data-title="${escapeHtml(r.title)}">⬇ Get</button></div>`;
+    <div class="card-actions"><button class="btn-play" data-id="${r.id}" data-title="${escapeHtml(r.title)}" data-artist="${escapeHtml(artist)}" data-cat="${escapeHtml(cat)}">▶ Play</button><button class="btn-download" data-id="${r.id}" data-title="${escapeHtml(r.title)}">⬇ Get</button><button class="btn-share" data-id="${r.id}" data-title="${escapeHtml(r.title)}" data-slug="${escapeHtml(slugify(r.title))}" aria-label="Share">⤴</button></div>`;
   return card;
 }
 
