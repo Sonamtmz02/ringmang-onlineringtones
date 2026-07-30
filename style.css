@@ -200,3 +200,9 @@ html { scroll-behavior:smooth; }
 .dl-action-btn:disabled { opacity:.4; cursor:not-allowed; background:#2a4d55; color:#9ca3af; }
 
 @media screen and (max-width:768px) { input, textarea, select { font-size:16px !important; } }
+/* ===== Share (Phase 9) ===== */
+   .btn-share { flex:0 0 auto; width:2.6rem; display:flex; align-items:center; justify-content:center; border-radius:.55rem; background:rgba(76,201,240,.10); border:1.5px solid rgba(76,201,240,.4); color:#4cc9f0; font-size:.95rem; transition:all .2s; }
+   .btn-share:hover { background:rgba(76,201,240,.22); box-shadow:0 0 14px rgba(76,201,240,.25); transform:translateY(-1px); }
+   .btn-share:active { transform:scale(.9); }
+   .player-share-btn { width:100%; margin-top:.6rem; padding:.6rem; border-radius:.6rem; background:rgba(76,201,240,.10); border:1.5px solid rgba(76,201,240,.4); color:#4cc9f0; font-family:"Unbounded",sans-serif; font-weight:600; font-size:.74rem; transition:all .2s; }
+   .player-share-btn:hover { background:rgba(76,201,240,.22); box-shadow:0 0 16px rgba(76,201,240,.22); }
