@@ -182,4 +182,156 @@ const CLIENT = `
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(CANON).then(function(){toast("\\uD83D\\uDD17 Link copied!")}).catch(function(){toast(CANON)});return}
     toast(CANON)});
   // count-up downloads
-  var dc=document.getElementById("dlcount");if(dc){var tgt=parseInt(dc.getAttribute("data-n"),10)||0,st=perform
+  var dc=document.getElementById("dlcount");if(dc){var tgt=parseInt(dc.getAttribute("data-n"),10)||0,st=performance.now();(function tk(now){var p=Math.min((now-st)/1100,1);dc.textContent=Math.round(tgt*(1-Math.pow(1-p,3))).toLocaleString();if(p<1)requestAnimationFrame(tk)})(st)}
+  // scroll reveal rails
+  if("IntersectionObserver"in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("revealed");io.unobserve(e.target)}})},{threshold:.1});document.querySelectorAll(".rcard").forEach(function(c){io.observe(c)})}else{document.querySelectorAll(".rcard").forEach(function(c){c.classList.add("revealed")})}
+})();
+`;
+
+function notFound(origin) {
+  const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Track not found · RingMang</title><meta name="robots" content="noindex,follow"><meta property="og:title" content="Track not found · RingMang"><meta property="og:site_name" content="RingMang"><link rel="canonical" href="' + origin + '/"><link rel="icon" href="/icon.svg"><style>' + CSS + 'body{display:flex;align-items:center;justify-content:center}.nf{text-align:center;position:relative;z-index:1;padding:2rem}.nf h1{font-size:2rem}.nf p{color:#84969a;margin:.8rem 0 1.4rem}</style></head><body><div class="stage"></div><div class="nf"><div class="eqm" style="margin:0 auto .8rem;height:26px"><span></span><span></span><span></span><span></span></div><h1>404 — not in the crate</h1><p>This ringtone may have been removed or the link is incomplete.</p><a class="browse" href="' + origin + '/">← Back to all ringtones</a></div></body></html>';
+  return new Response(html, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=60" } });
+}
+
+export async function onRequestGet(context) {
+  const { request, env, params } = context;
+  const origin = new URL(request.url).origin;
+  const SUPA = env.SUPABASE_URL, KEY = env.SUPABASE_ANON_KEY;
+  if (!SUPA || !KEY) return new Response("Missing env", { status: 500 });
+
+  const raw = (params.path || []).join("/");
+  if (!raw) return notFound(origin);
+  const lastDash = raw.lastIndexOf("-");
+  const candShort = lastDash >= 0 ? raw.slice(lastDash + 1) : "";
+
+  // resolve: exact slug first, then short_id
+  let row = null, byShort = false;
+  const bySlug = await getJSON(SUPA, KEY, "ringtones?seo_slug=eq." + encodeURIComponent(raw) + "&select=" + encodeURIComponent(SELECT) + "&limit=1");
+  if (Array.isArray(bySlug) && bySlug[0]) row = bySlug[0];
+  if (!row && candShort) {
+    const bySid = await getJSON(SUPA, KEY, "ringtones?short_id=eq." + encodeURIComponent(candShort) + "&select=" + encodeURIComponent(SELECT) + "&limit=1");
+    if (Array.isArray(bySid) && bySid[0]) { row = bySid[0]; byShort = true; }
+  }
+  if (!row) return notFound(origin);
+  // consolidate URL via 301 when landed on short-id form
+  if (byShort && raw !== row.seo_slug) {
+    return new Response(null, { status: 301, headers: { Location: origin + "/ringtone/" + encodeURIComponent(row.seo_slug), "Cache-Control": "public, max-age=86400" } });
+  }
+
+  const canonical = origin + "/ringtone/" + encodeURIComponent(row.seo_slug);
+  const title = row.title || "Untitled";
+  const artist = (row.artists && row.artists.name) || "";
+  const category = (row.categories && row.categories.name) || "";
+  const catSlug = (row.categories && row.categories.slug) || "";
+  const artistSlug = (row.artists && row.artists.slug) || "";
+  const dLabel = durLabel(row.duration_seconds);
+  const dIso = durIso(row.duration_seconds);
+  const dl = row.download_count || 0;
+
+  // templates
+  const tpls = (await getJSON(SUPA, KEY, "seo_templates?select=template_key,pattern")) || [];
+  const tmap = {}; tpls.forEach((t) => { tmap[t.template_key] = t.pattern; });
+  const ctx = { title, artist: artist || "Unknown Artist", category: category || "Uncategorized", duration: dLabel, count: String(dl) };
+  const metaTitle = (row.seo_title && row.seo_title.trim()) ? row.seo_title.trim() : applyTpl(tmap["track_title"], ctx);
+  const metaDesc = (row.seo_description && row.seo_description.trim()) ? row.seo_description.trim() : applyTpl(tmap["track_desc"], ctx);
+  const keywords = (row.seo_keywords && row.seo_keywords.trim()) ? row.seo_keywords.trim() : [title, artist, category, "ringtone", "free download", "mp3"].filter(Boolean).join(", ");
+  const ogImage = origin + "/og/" + encodeURIComponent(row.id) + ".svg";
+  const noindex = row.seo_noindex === true;
+  const robots = noindex ? "noindex,follow" : "index,follow,max-image-preview:large";
+  const isCopy = row.copyright_status === "copyrighted";
+  const created = row.created_at ? String(row.created_at).slice(0, 10) : "";
+  const ext = extOf(row.file_url);
+
+  // related (same category) + artist tracks
+  let related = [], artistTracks = [];
+  if (row.category_id) {
+    const r = await getJSON(SUPA, KEY, "ringtones?id=neq." + encodeURIComponent(row.id) + "&category_id=eq." + encodeURIComponent(row.category_id) + "&select=id,title,seo_slug,download_count,artists(name)&order=download_count.desc&limit=10");
+    if (Array.isArray(r)) related = r;
+  }
+  if (related.length < 4) {
+    const r2 = await getJSON(SUPA, KEY, "ringtones?id=neq." + encodeURIComponent(row.id) + "&select=id,title,seo_slug,download_count,artists(name)&order=download_count.desc&limit=10");
+    if (Array.isArray(r2)) { const have = {}; related.forEach((x) => have[x.id] = 1); r2.forEach((x) => { if (!have[x.id] && related.length < 10) related.push(x); }); }
+  }
+  if (row.artist_id) {
+    const a = await getJSON(SUPA, KEY, "ringtones?id=neq." + encodeURIComponent(row.id) + "&artist_id=eq." + encodeURIComponent(row.artist_id) + "&select=id,title,seo_slug,download_count&order=download_count.desc&limit=8");
+    if (Array.isArray(a)) artistTracks = a;
+  }
+
+  // JSON-LD
+  const music = { "@context": "https://schema.org", "@type": "MusicRecording", name: title, description: metaDesc, inLanguage: "en", isFamilyFriendly: !isCopy, datePublished: created || undefined, keywords: keywords,
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonical }, image: ogImage,
+    audio: { "@type": "AudioObject", encodingFormat: "audio/" + ext, uploadDate: created || undefined },
+    interactionStatistic: { "@type": "InteractionCounter", interactionType: { "@type": "DownloadAction" }, userInteractionCount: dl } };
+  if (artist) music.byArtist = { "@type": "MusicGroup", name: artist };
+  if (category) music.genre = category;
+  if (row.genre) music.genre = row.genre;
+  if (dIso) music.duration = dIso;
+  const bc = { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: origin + "/" },
+    { "@type": "ListItem", position: 2, name: category || "Ringtones", item: catSlug ? (origin + "/category/" + encodeURIComponent(catSlug)) : (origin + "/") },
+    { "@type": "ListItem", position: 3, name: title, item: canonical } ] };
+
+  const rcards = (arr) => arr.map((r, i) => {
+    const a = (r.artists && r.artists.name) || "";
+    return '<a class="rcard" href="' + origin + '/ringtone/' + encodeURIComponent(r.seo_slug) + '"><div class="mw" aria-hidden="true">' + waveBars(hashStr(r.title) + i, 12) + '</div><div class="rt">' + escHtml(r.title) + '</div><div class="rm">' + escHtml(a || "RingMang") + '</div><div class="rd">⬇ ' + fmt(r.download_count) + '</div></a>';
+  }).join("");
+  const ticker = (related.length ? related : []).map((r) => '<a href="' + origin + '/ringtone/' + encodeURIComponent(r.seo_slug) + '">' + escHtml(r.title) + ' <span class="d">⬇' + fmt(r.download_count) + '</span></a>').join("");
+
+  const html = '<!doctype html><html lang="en"><head>'
+    + '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>' + escHtml(metaTitle) + '</title>'
+    + '<meta name="description" content="' + escAttr(metaDesc) + '">'
+    + '<meta name="keywords" content="' + escAttr(keywords) + '">'
+    + '<meta name="robots" content="' + robots + '">'
+    + '<link rel="canonical" href="' + canonical + '">'
+    + '<meta property="og:type" content="music.song">'
+    + '<meta property="og:site_name" content="RingMang">'
+    + '<meta property="og:title" content="' + escAttr(metaTitle) + '">'
+    + '<meta property="og:description" content="' + escAttr(metaDesc) + '">'
+    + '<meta property="og:url" content="' + canonical + '">'
+    + '<meta property="og:image" content="' + ogImage + '">'
+    + '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">'
+    + '<meta property="music:musician" content="' + escAttr(artist || "RingMang") + '">'
+    + (dIso ? '<meta property="music:duration" content="' + row.duration_seconds + '">' : '')
+    + '<meta name="twitter:card" content="summary_large_image">'
+    + '<meta name="twitter:title" content="' + escAttr(metaTitle) + '">'
+    + '<meta name="twitter:description" content="' + escAttr(metaDesc) + '">'
+    + '<meta name="twitter:image" content="' + ogImage + '">'
+    + '<meta name="theme-color" content="#071417">'
+    + '<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" href="/icon.svg">'
+    + '<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="RingMang">'
+    + '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    + '<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700;800&family=Outfit:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">'
+    + '<script type="application/ld+json">' + safeJson(music) + '</script>'
+    + '<script type="application/ld+json">' + safeJson(bc) + '</script>'
+    + '<style>' + CSS + '</style></head><body>'
+    + '<div class="stage"></div>'
+    + '<div id="rm-data" class="hidden" data-id="' + escAttr(row.id) + '" data-canon="' + escAttr(canonical) + '" data-supa="' + escAttr(SUPA) + '" data-key="' + escAttr(KEY) + '" data-title="' + escAttr(title) + '"></div>'
+    + '<header class="top"><div class="wrap top-in">'
+    + '<a class="brand" href="' + origin + '/"><div class="eqm" aria-hidden="true"><span></span><span></span><span></span><span></span></div><span class="wm">Ring<span class="c">Mang</span></span></a>'
+    + '<nav class="crumb" aria-label="Breadcrumb"><a href="' + origin + '/">Home</a><span class="sep">/</span>' + (catSlug ? '<a href="' + origin + '/category/' + encodeURIComponent(catSlug) + '">' + escHtml(category) + '</a><span class="sep">/</span>' : '') + '<span class="now">' + escHtml(title) + '</span></nav>'
+    + '<a class="browse" href="' + origin + '/#library">Browse all</a>'
+    + '</div></header>'
+    + (ticker ? '<div class="tick"><div class="tick-in">' + ticker + ticker + '</div></div>' : '')
+    + '<main class="wrap"><section class="hero">'
+    + '<div>'
+    + '<div class="kicker"><span class="live"></span><span class="ktxt">' + (isCopy ? "© Copyrighted clip" : "Original · royalty-free") + '</span>' + (category ? '<a class="chip" href="' + origin + '/category/' + encodeURIComponent(catSlug) + '">' + escHtml(category) + '</a>' : '') + (row.genre ? '<span class="chip">' + escHtml(row.genre) + '</span>' : '') + '</div>'
+    + '<h1>' + escHtml(title) + '<svg class="squig" viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 10 Q 75 2, 150 9 T 297 6" fill="none" stroke="#ffd166" stroke-width="4" stroke-linecap="round"/></svg></h1>'
+    + '<p class="byline">by ' + (artist ? '<a href="' + origin + '/artist/' + encodeURIComponent(artistSlug) + '">' + escHtml(artist) + '</a>' : escHtml("Unknown Artist")) + '</p>'
+    + '<p class="desc">' + escHtml(metaDesc) + '</p>'
+    + '<div class="stats"><span class="dl">⬇ <b id="dlcount" data-n="' + dl + '">0</b> downloads</span><span>· ' + fbytes(row.file_size_bytes) + '</span><span>· ' + ext.toUpperCase() + '</span>' + (dLabel ? '<span>· ' + dLabel + '</span>' : '') + '</div>'
+    + '<div class="ctrls"><button id="play" class="play" aria-label="Play preview">▶</button><button id="dlbtn" class="btn dl">⬇ Download</button><div id="dlcd" class="dlcd hidden"><svg viewBox="0 0 40 40"><circle class="rb" cx="20" cy="20" r="18"/><circle id="dlf" class="rf" cx="20" cy="20" r="18"/></svg><span id="dln" class="n"></span></div><button id="shbtn" class="btn sh">⤴ Share</button></div>'
+    + '</div>'
+    + '<div class="vizcard"><div class="viztop"><div class="vinyl" aria-hidden="true"></div><div class="vizsig">now spinning<b>' + escHtml(title.length > 22 ? title.slice(0, 21) + "…" : title) + '</b></div></div><div id="viz" class="viz" aria-hidden="true">' + waveBars(hashStr(title), 22) + '</div><div class="seek"><span id="cur" class="tm">0:00</span><input id="seek" class="rng" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek"><span id="dur" class="tm">0:00</span></div><div class="vol"><span style="font-size:.85rem">🔊</span><input id="vol" class="rng" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume"></div></div>'
+    + '</section>'
+    + (related.length ? '<section class="rail"><h2><span class="bar"></span>More like this</h2><div class="scroller">' + rcards(related) + '</div></section>' : '')
+    + (artistTracks.length ? '<section class="rail"><h2><span class="bar" style="background:#4cc9f0;box-shadow:0 0 8px rgba(76,201,240,.6)"></span>More from ' + escHtml(artist) + '</h2><div class="scroller">' + rcards(artistTracks) + '</div></section>' : '')
+    + '</main>'
+    + '<footer class="foot"><div class="wrap foot-in"><div class="wm2">Ring<span style="color:#ff6b4a">Mang</span></div><p><strong style="color:#7c8d90">Copyright &amp; DMCA:</strong> RingMang respects intellectual property rights. Content marked © Copyrighted is shared for preview and promotional purposes. If you believe your copyright has been infringed, submit a DMCA takedown request and we will promptly review it. <a href="' + origin + '/">RingMang home</a></p></div></footer>'
+    + '<audio id="pa" preload="none"></audio>'
+    + '<script>' + CLIENT + '</script>'
+    + '</body></html>';
+
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=60, s-maxage=120, stale-while-revalidate=300" } });
+}
+// RM9B_RINGTONE_END
