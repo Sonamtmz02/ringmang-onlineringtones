@@ -115,7 +115,7 @@ export async function onRequestGet(context){
   +'<main class="wrap">'
   +'<div class="opener"><div class="kicker"><span class="ln"></span>LEGAL · TERMS OF SERVICE</div>'
   +'<h1>Terms of Service</h1>'
-  +'<p class="lede">यो पृष्ठले RingMang प्रयोग गर्ने नियमहरू सरल भाषामा व्याख्या गर्छ — content, copyright, DMCA, ads र तपाईंका अधिकारहरू। (The legal text below is in standard English so it is precise and publish-ready.)</p>'
+  +'<p class="lede">This page explains the rules for using RingMang in plain language — content, copyright, DMCA, advertising and your rights. Read it in full; it is the agreement between you and us.</p>'
   +'<div class="meta-row"><span class="meta-pill"><span class="d"></span>Effective <b>'+UPDATED+'</b></span><span class="meta-pill">Version <b>'+VERSION+'</b></span><span class="meta-pill">Operated from <b>Nepal</b></span><span class="meta-pill">Plain-language <b>English</b></span></div>'
   +'</div>'
   +'<nav class="toc" aria-label="On this page">'+toc()+'</nav>'
