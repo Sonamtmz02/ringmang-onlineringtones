@@ -162,5 +162,25 @@
 
   <script src="config.js"></script>
   <script src="script.js"></script>
+  
+  <!-- INSTALL BANNER (PWA, Phase 11) -->
+  <div id="install-banner" class="install-banner hidden" role="dialog" aria-label="Install RingMang">
+    <div class="install-glow" aria-hidden="true"></div>
+    <div class="install-inner">
+      <div class="install-led" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div class="install-body">
+        <p class="install-title">Install RingMang</p>
+        <p id="install-sub" class="install-sub">Add it to your home screen — opens full-screen, lighter on data, and remembers your last session.</p>
+      </div>
+      <div class="install-actions">
+        <button id="install-dismiss" class="install-btn ghost">Not now</button>
+        <button id="install-accept" class="install-btn solid"><span class="install-pulse" aria-hidden="true"></span>Install</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>
