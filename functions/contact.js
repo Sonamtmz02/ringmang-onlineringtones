@@ -90,7 +90,7 @@ export async function onRequestGet(context){
   +'<main class="wrap">'
   +'<div class="opener"><div class="kicker"><span class="ln"></span>CONTACT · WE READ EVERY MESSAGE</div>'
   +'<h1>Say hello</h1>'
-  +'<p class="lede">प्रश्न, bug report, partnership वा सुझाव — जे भए पनि लेख्नुहोस्। हामी १–२ दिन भित्र जवाफ दिन्छौं। (Form labels are in English; you are welcome to write your message in Nepali or English.)</p>'
+  +'<p class="lede">Questions, bug reports, partnerships or suggestions — write to us about anything. We read every message ourselves and reply within 1–2 days. (Messages in Nepali or English are both welcome.)</p>'
   +'<div class="meta-row"><span class="meta-pill"><span class="d"></span>Replies in <b>1–2 days</b></span><span class="meta-pill">No spam, <b>ever</b></span><span class="meta-pill">Nepali or <b>English</b></span></div>'
   +'</div>'
   +'<div class="grid2">'
