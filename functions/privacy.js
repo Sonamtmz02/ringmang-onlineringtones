@@ -109,7 +109,7 @@ export async function onRequestGet(context){
   +'<main class="wrap">'
   +'<div class="opener"><div class="kicker"><span class="ln"></span>LEGAL · PRIVACY POLICY</div>'
   +'<h1>Privacy Policy</h1>'
-  +'<p class="lede">हामी जति सकिन्छ कम data राख्छौं — किनभने listener हरूले account नै बनाउनु पर्दैन। (The policy text below is in standard English so it is precise and publish-ready.)</p>'
+  +'<p class="lede">We collect as little data as possible — listeners never create an account, so there are no passwords or profiles to store. This policy explains the small amount of data that does exist, and the choices you have over it.</p>'
   +'<div class="meta-row"><span class="meta-pill"><span class="d"></span>Effective <b>'+UPDATED+'</b></span><span class="meta-pill">Version <b>'+VERSION+'</b></span><span class="meta-pill">No listener accounts <b>by design</b></span><span class="meta-pill">No ad-tracking cookies <b>ever</b></span></div>'
   +'</div>'
   +'<nav class="toc" aria-label="On this page">'+toc()+'</nav>'
