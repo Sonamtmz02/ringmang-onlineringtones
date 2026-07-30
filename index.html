@@ -11,19 +11,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            display: ['"Unbounded"', 'sans-serif'],
-            body: ['"Outfit"', 'sans-serif'],
-            mono: ['"Space Mono"', 'monospace'],
-          },
-          colors: {
-            ink: { 950:'#071417', 900:'#0c1a1d', 850:'#102226', 800:'#152a2f', 700:'#1e3a40', 600:'#2a4d55' },
-            ring: { coral:'#ff6b4a', mint:'#3ddc97', sun:'#ffd166', sky:'#4cc9f0' },
-          },
-        },
-      },
+      theme: { extend: {
+        fontFamily: { display:['"Unbounded"','sans-serif'], body:['"Outfit"','sans-serif'], mono:['"Space Mono"','monospace'] },
+        colors: { ink:{950:'#071417',900:'#0c1a1d',850:'#102226',800:'#152a2f',700:'#1e3a40',600:'#2a4d55'}, ring:{coral:'#ff6b4a',mint:'#3ddc97',sun:'#ffd166',sky:'#4cc9f0'} },
+      }},
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -31,13 +22,12 @@
 </head>
 <body class="bg-ink-950 text-gray-200 font-body min-h-screen overflow-x-hidden">
 
-  <!-- Layered Ambient Background -->
   <div class="bg-stage" aria-hidden="true"></div>
 
-  <!-- ===== TOP BAR ===== -->
+  <!-- TOP BAR -->
   <header class="sticky top-0 z-40 bg-ink-950/90 backdrop-blur border-b border-ink-700/50">
     <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-      <a href="#" class="flex items-center gap-2.5 group">
+      <a href="#" class="flex items-center gap-2.5">
         <div class="eq-mini" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
         <span class="font-display font-bold text-lg tracking-tight text-white">Ring<span class="text-ring-coral">Mang</span></span>
       </a>
@@ -48,120 +38,127 @@
     </div>
   </header>
 
-  <!-- ===== TRENDING TICKER ===== -->
+  <!-- TICKER -->
   <div class="ticker-wrap border-b border-ink-700/50 bg-ink-900/60">
     <div class="flex items-stretch max-w-5xl mx-auto">
-      <div class="ticker-label flex items-center gap-1.5 px-4 bg-ring-coral text-ink-950 font-display font-bold text-[10px] uppercase tracking-widest flex-shrink-0">
-        <span>🔥</span><span>Trending</span>
-      </div>
-      <div class="ticker-viewport overflow-hidden flex-1">
-        <div id="ticker-track" class="ticker-track">
-          <span class="font-mono text-xs text-gray-400 py-2.5">Loading trending ringtones…</span>
-        </div>
-      </div>
+      <div class="ticker-label flex items-center gap-1.5 px-4 bg-ring-coral text-ink-950 font-display font-bold text-[10px] uppercase tracking-widest flex-shrink-0"><span>🔥</span><span>Trending</span></div>
+      <div class="ticker-viewport overflow-hidden flex-1"><div id="ticker-track" class="ticker-track"><span class="font-mono text-xs text-gray-400 py-2.5">Loading trending ringtones…</span></div></div>
     </div>
   </div>
 
-  <!-- ===== OPENER (asymmetric, chart-style) ===== -->
+  <!-- OPENER -->
   <section class="relative z-10 max-w-5xl mx-auto px-4 pt-12 pb-8">
     <div class="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center">
       <div>
         <p class="font-mono text-[11px] uppercase tracking-[0.3em] text-ring-mint mb-4">♫ Free ringtones · No sign-up</p>
-        <h1 class="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.05] text-white">
-          Your phone deserves a
-          <span class="text-ring-coral relative inline-block">signature sound<svg class="squiggle" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9 Q 50 2, 100 8 T 198 5" fill="none" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/></svg></span>
-        </h1>
-        <p class="text-gray-400 text-base sm:text-lg mt-5 max-w-xl leading-relaxed">
-          Browse, preview & download handpicked ringtones — from original beats to movie clips. Free forever, straight to your device.
-        </p>
+        <h1 class="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.05] text-white">Your phone deserves a <span class="text-ring-coral relative inline-block">signature sound<svg class="squiggle" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9 Q 50 2, 100 8 T 198 5" fill="none" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/></svg></span></h1>
+        <p class="text-gray-400 text-base sm:text-lg mt-5 max-w-xl leading-relaxed">Browse, preview & download handpicked ringtones — from original beats to movie clips. Free forever, straight to your device.</p>
         <div class="flex flex-wrap items-center gap-3 mt-7">
           <a href="#library" class="btn-coral">Browse Ringtones <span class="ml-1">↓</span></a>
           <span class="font-mono text-[11px] text-gray-500">100% free · MP3 & M4A</span>
         </div>
       </div>
-
-      <!-- Big Animated Equalizer -->
-      <div class="hidden lg:flex items-end justify-center gap-2 h-44 eq-big" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span>
-      </div>
+      <div class="hidden lg:flex items-end justify-center gap-2 h-44 eq-big" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     </div>
-
-    <!-- Stats Strip -->
     <div class="stats-strip mt-12 grid grid-cols-3 divide-x divide-ink-700/60 border border-ink-700/60 rounded-xl bg-ink-900/60 overflow-hidden">
-      <div class="stat-cell">
-        <span id="stat-ringtones" class="stat-num text-ring-coral">0</span>
-        <span class="stat-label">Ringtones</span>
-      </div>
-      <div class="stat-cell">
-        <span id="stat-downloads" class="stat-num text-ring-mint">0</span>
-        <span class="stat-label">Downloads</span>
-      </div>
-      <div class="stat-cell">
-        <span id="stat-categories" class="stat-num text-ring-sun">0</span>
-        <span class="stat-label">Categories</span>
-      </div>
+      <div class="stat-cell"><span id="stat-ringtones" class="stat-num text-ring-coral">0</span><span class="stat-label">Ringtones</span></div>
+      <div class="stat-cell"><span id="stat-downloads" class="stat-num text-ring-mint">0</span><span class="stat-label">Downloads</span></div>
+      <div class="stat-cell"><span id="stat-categories" class="stat-num text-ring-sun">0</span><span class="stat-label">Categories</span></div>
     </div>
   </section>
 
-  <!-- ===== CATEGORY CHIPS (visual now, filter in Phase 8) ===== -->
+  <!-- CHIPS -->
   <section class="relative z-10 max-w-5xl mx-auto px-4 pb-2">
-    <div id="category-chips" class="chips-row">
-      <span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span>
-    </div>
+    <div id="category-chips" class="chips-row"><span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span><span class="chip chip-skeleton"></span></div>
   </section>
 
-  <!-- ===== RINGTONE LIBRARY ===== -->
+  <!-- LIBRARY -->
   <section id="library" class="relative z-10 max-w-5xl mx-auto px-4 py-8">
     <div class="flex items-end justify-between gap-4 mb-6">
-      <div>
-        <h2 class="font-display font-bold text-2xl text-white">All Ringtones</h2>
-        <p class="font-mono text-[11px] text-gray-500 mt-1">Newest first · Tap a card to preview</p>
-      </div>
+      <div><h2 class="font-display font-bold text-2xl text-white">All Ringtones</h2><p class="font-mono text-[11px] text-gray-500 mt-1">Newest first · Tap ▶ to preview</p></div>
       <span class="font-mono text-[11px] text-gray-500 hidden sm:block"><span id="shown-count">0</span> shown</span>
     </div>
-
     <div id="ringtone-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <!-- Skeleton loaders -->
       <div class="card-skeleton"></div><div class="card-skeleton"></div><div class="card-skeleton"></div>
       <div class="card-skeleton"></div><div class="card-skeleton"></div><div class="card-skeleton"></div>
     </div>
-
     <div id="empty-state" class="hidden text-center py-16">
       <div class="eq-mini mx-auto mb-4 opacity-40"><span></span><span></span><span></span><span></span></div>
-      <p class="text-gray-400 font-medium">No ringtones yet.</p>
-      <p class="text-gray-600 text-sm mt-1">Check back soon — fresh sounds are on the way.</p>
+      <p class="text-gray-400 font-medium">No ringtones yet.</p><p class="text-gray-600 text-sm mt-1">Check back soon — fresh sounds are on the way.</p>
     </div>
-
-    <div class="text-center mt-8">
-      <button id="load-more-btn" class="btn-outline hidden">Load More Ringtones</button>
-    </div>
+    <div class="text-center mt-8"><button id="load-more-btn" class="btn-outline hidden">Load More Ringtones</button></div>
   </section>
 
-  <!-- ===== FOOTER (Legal / DMCA) ===== -->
+  <!-- FOOTER -->
   <footer class="relative z-10 border-t border-ink-700/50 bg-ink-900/70 mt-8">
     <div class="max-w-5xl mx-auto px-4 py-10">
-      <div class="flex items-center gap-2.5 mb-4">
-        <div class="eq-mini opacity-70"><span></span><span></span><span></span><span></span></div>
-        <span class="font-display font-bold text-white">Ring<span class="text-ring-coral">Mang</span></span>
-      </div>
-      <p class="text-xs text-gray-500 leading-relaxed max-w-2xl mb-5">
-        <strong class="text-gray-400">Copyright & DMCA:</strong> RingMang respects intellectual property rights.
-        Content marked <span class="text-ring-coral">© Copyrighted</span> is shared for preview and promotional purposes.
-        If you believe your copyright has been infringed, please submit a DMCA takedown request and we will promptly review and remove the content.
-      </p>
-      <div class="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-widest">
-        <a href="#" class="footer-link">Terms of Service</a>
-        <a href="#" class="footer-link">DMCA Policy</a>
-        <a href="#" class="footer-link">Privacy</a>
-        <a href="#" class="footer-link">Contact</a>
-      </div>
+      <div class="flex items-center gap-2.5 mb-4"><div class="eq-mini opacity-70"><span></span><span></span><span></span><span></span></div><span class="font-display font-bold text-white">Ring<span class="text-ring-coral">Mang</span></span></div>
+      <p class="text-xs text-gray-500 leading-relaxed max-w-2xl mb-5"><strong class="text-gray-400">Copyright & DMCA:</strong> RingMang respects intellectual property rights. Content marked <span class="text-ring-coral">© Copyrighted</span> is shared for preview and promotional purposes. If you believe your copyright has been infringed, please submit a DMCA takedown request and we will promptly review and remove the content.</p>
+      <div class="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-widest"><a href="#" class="footer-link">Terms of Service</a><a href="#" class="footer-link">DMCA Policy</a><a href="#" class="footer-link">Privacy</a><a href="#" class="footer-link">Contact</a></div>
       <p class="font-mono text-[10px] text-gray-600 mt-6">© 2026 RingMang · All rights reserved · Made for music lovers</p>
     </div>
   </footer>
 
-  <!-- Toast -->
+  <!-- ===== PLAYER MODAL ===== -->
+  <div id="player-modal" class="player-overlay hidden" role="dialog" aria-modal="true" aria-label="Audio player">
+    <div class="player-shell">
+      <button id="player-close" class="x-btn" aria-label="Close player">×</button>
+      <div class="player-art">
+        <div class="player-glow" aria-hidden="true"></div>
+        <div class="player-disc" aria-hidden="true"><span></span></div>
+        <div id="player-viz" class="player-viz" aria-hidden="true"></div>
+      </div>
+      <div class="player-info">
+        <p id="player-cat" class="player-cat">—</p>
+        <h3 id="player-title" class="player-title">—</h3>
+        <p id="player-artist" class="player-artist">—</p>
+      </div>
+      <div class="player-seek">
+        <span id="player-cur" class="player-time">0:00</span>
+        <input id="player-bar" type="range" min="0" max="100" value="0" step="0.1" class="player-range" aria-label="Seek">
+        <span id="player-dur" class="player-time">0:00</span>
+      </div>
+      <div class="player-controls">
+        <button id="player-back10" class="pctrl" aria-label="Back 10 seconds">⟲10</button>
+        <button id="player-toggle" class="pctrl pctrl-main" aria-label="Play or pause">▶</button>
+        <button id="player-fwd10" class="pctrl" aria-label="Forward 10 seconds">10⟳</button>
+      </div>
+      <div class="player-vol"><span class="vol-ico">🔊</span><input id="player-vol" type="range" min="0" max="1" step="0.01" value="1" class="player-range vol-range" aria-label="Volume"></div>
+      <button id="player-download" class="player-dl-btn">⬇ Download this ringtone</button>
+    </div>
+  </div>
+
+  <!-- ===== DOWNLOAD MODAL ===== -->
+  <div id="dl-modal" class="dl-overlay hidden" role="dialog" aria-modal="true" aria-label="Download ringtone">
+    <div class="dl-shell">
+      <button id="dl-close" class="x-btn" aria-label="Close">×</button>
+      <h3 class="dl-title">Preparing Download</h3>
+      <p id="dl-track" class="dl-track">—</p>
+
+      <div id="dl-countdown-phase">
+        <div class="dl-ad-slot" aria-label="Advertisement placeholder"><span class="dl-ad-tag">AD</span><p class="dl-ad-text">Sponsored space<br><span>Ad network activates in Phase 10</span></p></div>
+        <div class="dl-ring-wrap">
+          <svg class="dl-ring" viewBox="0 0 100 100"><circle class="dl-ring-bg" cx="50" cy="50" r="44"/><circle id="dl-ring-fg" class="dl-ring-fg" cx="50" cy="50" r="44"/></svg>
+          <span id="dl-count" class="dl-count">5</span>
+        </div>
+        <p class="dl-hint">Please wait for the countdown…</p>
+      </div>
+
+      <div id="dl-progress-phase" class="hidden">
+        <div class="dl-prog-track"><div id="dl-prog-bar" class="dl-prog-bar"></div></div>
+        <p id="dl-prog-text" class="dl-prog-text">Fetching from secure storage…</p>
+      </div>
+
+      <div id="dl-done-phase" class="hidden">
+        <div class="dl-check">✓</div>
+        <p class="dl-done-text">Saved to your device!</p>
+        <p class="dl-done-sub">Check your Downloads folder.</p>
+      </div>
+
+      <button id="dl-action" class="dl-action-btn" disabled>Please wait…</button>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"><p id="toast-message"></p></div>
 
   <script src="config.js"></script>
