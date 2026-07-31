@@ -134,7 +134,7 @@ const Audio_={el:null,ctx:null,srcNode:null,analyser:null,freq:null,useReal:fals
  async load(id,meta,btn){this.init();this.buildViz();
   if(this.currentId===id&&!this.el.paused){this.el.pause();return}
   if(this.currentId===id&&this.el.paused){this.el.play().catch(()=>{});this.currentBtn=btn;return}
-  this.currentBtn=btn;this.currentId=id;el.playerTitle.textContent=meta.title;el.playerArtist.textContent=meta.artist;el.playerCat.textContent=meta.cat;el.playerCur.textContent="0:00";el.playerDur.textContent="0:00";el.playerBar.value=0;
+  this.currentBtn=btn;this.currentId=id;el.playerTitle.textContent=meta.title;el.playerTitle.style.whiteSpace="normal";el.playerTitle.style.overflowWrap="anywhere";el.playerTitle.style.wordBreak="break-word";el.playerArtist.textContent=meta.artist;el.playerCat.textContent=meta.cat;el.playerCur.textContent="0:00";el.playerDur.textContent="0:00";el.playerBar.value=0;
   try{const s=await fetchSigned(id,"play");this.el.src=s.url;this.el.load();this.ensureGraph();if(this.ctx&&this.ctx.state==="suspended")this.ctx.resume();await this.el.play()}catch(e){showToast("▶ Play भएन: "+e.message);this.setPlaying(false)}},
  toggle(){if(!this.el||!this.el.src)return;if(this.el.paused)this.el.play().catch(()=>{});else this.el.pause()},
  seek(v){if(!this.el)return;this.el.currentTime=parseFloat(v)},vol(v){if(this.el)this.el.volume=parseFloat(v)},
