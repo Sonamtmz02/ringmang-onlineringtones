@@ -121,3 +121,7 @@ a.card-title:hover::after{right:0}
 .card-new{font-family:"Space Mono",monospace;font-size:.52rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#3ddc97;border:1px solid rgba(61,220,151,.35);border-radius:1rem;padding:.05rem .42rem;margin-left:.35rem;flex-shrink:0;animation:newpulse 2.4s ease-in-out infinite}
 @keyframes newpulse{0%,100%{opacity:.65}50%{opacity:1;box-shadow:0 0 8px rgba(61,220,151,.3)}}
 .ring-card:hover .card-stars:not(.empty) .csf{text-shadow:0 0 9px rgba(251,191,36,.7)}
+
+/* ===== Long-title safety (Phase 14C-2): wrap unbreakable underscore titles everywhere (home modal etc.) ===== */
+body{overflow-wrap:break-word}
+.modal-card,.player-modal,[class*="modal"] [class*="title"],[class*="player"] [class*="title"]{overflow-wrap:anywhere;word-break:break-word}
