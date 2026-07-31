@@ -235,3 +235,18 @@ el.loadMoreBtn.addEventListener("click",()=>{el.loadMoreBtn.disabled=true;el.loa
 // ===== Boot =====
 document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())return;
  loadTicker();loadStats();await loadCategoryChips();readURL();loadRingtones(false);initAds()});
+
+// ===== 14C-4: when user returns (Back / tab-switch), reload the grid so a rating
+// given on a track page shows on home without a manual refresh. APPEND-ONLY, safe. =====
+(function(){
+  var last=0;
+  function refreshGrid(){
+    var now=Date.now(); if(now-last<1500)return; last=now;
+    try{
+      if(typeof applyFilter==="function"){ applyFilter(); }
+      else if(typeof loadRingtones==="function"){ try{ringtoneOffset=0}catch(e){} loadRingtones(false); }
+    }catch(e){}
+  }
+  window.addEventListener("pageshow",function(e){ if(e.persisted){ last=0; refreshGrid(); } });
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden){ refreshGrid(); } });
+})();
