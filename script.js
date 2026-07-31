@@ -325,3 +325,63 @@ document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())re
   document.addEventListener("pointerdown",function(e){if(!panel.contains(e.target)&&e.target!==input){close()}});
   window.addEventListener("pageshow",function(){close()});
 })();
+
+/* ===== 15A-2: Home player-modal Download SmartLink (append-only, isolated).
+   Mirrors track-page logic but resolves the *current* track lazily: a MutationObserver
+   watches the player modal and, the moment it opens, fetches that track's per-ringtone
+   link into a cache. Global config (mode/behavior/global link) is fetched once on load.
+   Capture-phase click on #player-download opens the SmartLink (new tab, noopener) and,
+   per behavior, either also runs the existing countdown+blob (both) or stops it (link_only).
+   Existing modal/player/search/rating logic is never touched. ?sldebug=1 shows a bar. ===== */
+(function(){
+ try{
+  if(typeof el==="undefined"||!el||typeof Audio_==="undefined"||!Audio_)return;
+  if(typeof supabaseClient==="undefined"||!supabaseClient)return;
+  var CFG=window.RINGMANG_CONFIG||{};
+  var SUPA=CFG.SUPABASE_URL||""; var KEY=CFG.SUPABASE_ANON_KEY||"";
+  var DEBUG=/[?&]sldebug=1/.test(location.search);
+  var modal=el.playerModal, dlbtn=el.playerDownload;
+  if(!modal||!dlbtn)return;
+  var st={supa:!!SUPA,key:!!KEY,asStatus:"-",rtStatus:"-",mode:"?",behavior:"?",glink:"?",tlink:"?",fetch:"pending",click:"-"};
+  function render(){ if(!DEBUG)return; var b=document.getElementById("rm-sl-debug"); if(!b){b=document.createElement("div");b.id="rm-sl-debug";b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#0b0f14;color:#3ddc97;font:11px/1.5 monospace;padding:8px 10px;border-top:2px solid #3ddc97;white-space:pre-wrap;word-break:break-all;text-align:left";document.body.appendChild(b);} b.textContent="SL DEBUG (home modal)\nsupa="+st.supa+" key="+st.key+"\nfetch="+st.fetch+" appHTTP="+st.asStatus+" rtHTTP="+st.rtStatus+"\nmode="+st.mode+" behavior="+st.behavior+"\nglink="+st.glink+"\ntlink="+st.tlink+"\nclick="+st.click; }
+  if(DEBUG)render();
+  if(!SUPA||!KEY){ st.fetch="no-config"; render(); return; }
+
+  var mode="silent",behavior="both",globalLink="",cachedId=null,cachedTrackLink="",ready=false;
+  function short(s){s=(s||"").trim();return s?(s.length>42?s.slice(0,42)+"…":s):"(empty)"}
+
+  // global config once
+  fetch(SUPA+"/rest/v1/app_settings?setting_key=in.(smartlink_global_link,smartlink_mode,smartlink_behavior)&select=setting_key,setting_value",{headers:{apikey:KEY}})
+    .then(function(r){st.asStatus=r.status;return r.ok?r.json():[]})
+    .then(function(rows){var m={};for(var i=0;i<rows.length;i++){m[rows[i].setting_key]=rows[i].setting_value;}mode=m.smartlink_mode||"silent";behavior=m.smartlink_behavior||"both";globalLink=(m.smartlink_global_link||"").trim();ready=true;st.mode=mode;st.behavior=behavior;st.glink=short(globalLink);st.fetch="ok";render();})
+    .catch(function(){st.asStatus="net";st.fetch="err";render();});
+
+  // when modal opens, prefetch the current track's per-ringtone link
+  function prefetchTrackLink(){
+    var id=Audio_.currentId; if(!id)return;
+    if(id===cachedId)return; // same track already cached
+    cachedId=id; cachedTrackLink=""; st.tlink="…"; render();
+    fetch(SUPA+"/rest/v1/ringtones?select=download_ad_link&id=eq."+encodeURIComponent(id),{headers:{apikey:KEY}})
+      .then(function(r){st.rtStatus=r.status;return r.ok?r.json():[]})
+      .then(function(rows){var rt=(rows&&rows[0])||{};cachedTrackLink=(rt.download_ad_link||"").trim();if(cachedId===id){st.tlink=short(cachedTrackLink);render();}})
+      .catch(function(){st.rtStatus="net";render();});
+  }
+  var mo=new MutationObserver(function(){ if(!modal.classList.contains("hidden")){ prefetchTrackLink(); } });
+  mo.observe(modal,{attributes:true,attributeFilter:["class"]});
+
+  // capture-phase click: runs before the existing bubble-phase openDlModal handler
+  dlbtn.addEventListener("click",function(e){
+    var link=cachedTrackLink||globalLink;
+    if(!ready){ st.click="not-ready(silent)"; render(); return; }
+    if(mode==="adgated"&&link){
+      try{ window.open(link,"_blank","noopener,noreferrer"); st.click="OPENED "+short(link); }
+      catch(err){ st.click="open-err:"+err.message; }
+      render();
+      if(behavior==="link_only"){ e.stopImmediatePropagation(); e.preventDefault(); st.click+=" | blob-stopped"; render(); }
+    } else {
+      st.click=(mode!=="adgated"?"mode=silent":"no-link")+" -> blob only"; render();
+    }
+  },true);
+
+ }catch(err){ if(typeof console!=="undefined")console.warn("smartlink-home init failed",err); }
+})();
