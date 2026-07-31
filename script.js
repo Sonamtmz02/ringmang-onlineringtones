@@ -250,3 +250,78 @@ document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())re
   window.addEventListener("pageshow",function(e){ if(e.persisted){ last=0; refreshGrid(); } });
   document.addEventListener("visibilitychange",function(){ if(!document.hidden){ refreshGrid(); } });
 })();
+/* ===== 14E: Live search autocomplete (signal-matcher) — append-only, isolated.
+   Enhances the existing home search box WITHOUT changing its filter behaviour.
+   Typing -> debounced suggestions dropdown; click/Enter -> jump to track page;
+   keyboard ↑↓/Esc; matched substring highlighted; shimmer + no-signal states. ===== */
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var input=$("search-input")||$("library-search"); if(!input)return;
+  if(typeof supabaseClient==="undefined"||!supabaseClient)return;
+  var CFG=window.RINGMANG_CONFIG||{};
+  var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]})};
+  var escRe=function(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")};
+  function seed(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+  function miniWave(sd){var b="";for(var i=0;i<12;i++){var h=22+Math.abs(Math.sin((sd%97)*0.7+i*0.9))*78;b+='<span style="height:'+Math.round(h)+'%"></span>'}return b}
+  function highlight(title,q){var t=esc(title);if(!q)return t;try{var re=new RegExp("("+escRe(esc(q))+")","ig");return t.replace(re,'<span class="ac-hl">$1</span>')}catch(e){return t}}
+
+  // build panel (lives inside the search deck so it anchors under the box)
+  var deck=input.closest(".search-deck")||input.parentNode;
+  if(deck){deck.style.position="relative"}
+  var panel=document.createElement("div");panel.className="ac-panel";panel.setAttribute("role","listbox");panel.id="ac-panel";
+  (deck||document.body).appendChild(panel);
+
+  var rows=[],acIndex=-1,open=false,lastQ="",reqToken=0;
+  function setOpen(on){open=on;panel.classList.toggle("open",on);var sc=input.closest(".scanner");if(sc)sc.classList.toggle("ac-open",on)}
+  function close(){setOpen(false);acIndex=-1;panel.innerHTML=""}
+  function paintSel(){for(var i=0;i<rows.length;i++){rows[i].classList.toggle("sel",i===acIndex)}if(rows[acIndex]){try{rows[acIndex].scrollIntoView({block:"nearest"})}catch(e){}}}
+  function go(slug){if(slug)window.location.href="/ringtone/"+encodeURIComponent(slug)}
+
+  function renderSkeleton(){panel.innerHTML='<div class="ac-skel"></div><div class="ac-skel"></div><div class="ac-skel"></div>';setOpen(true)}
+  function renderEmpty(q){panel.innerHTML='<div class="ac-empty"><span class="ac-pulse-dot"></span><span>No signal for “'+esc(q)+'” — try another title.</span></div>';setOpen(true)}
+  function render(list,q){
+    if(!list.length){renderEmpty(q);return}
+    var html="";
+    for(var i=0;i<list.length;i++){var r=list[i];var a=(r.artists&&r.artists.name)||"";var c=(r.categories&&r.categories.name)||"";
+      html+='<div class="ac-row" role="option" data-slug="'+esc(r.seo_slug)+'" data-i="'+i+'">'
+        +'<span class="ac-wave" aria-hidden="true">'+miniWave(seed(r.title))+'</span>'
+        +'<span class="ac-body"><span class="ac-t">'+highlight(r.title,q)+'</span>'
+        +'<span class="ac-m">'+(a?esc(a):"RingMang")+(c?' · '+esc(c):"")+'</span></span>'
+        +'<span class="ac-go" aria-hidden="true">→</span></div>';}
+    panel.innerHTML=html;
+    rows=[].slice.call(panel.querySelectorAll(".ac-row"));
+    rows.forEach(function(row){
+      row.addEventListener("pointerenter",function(){acIndex=parseInt(row.getAttribute("data-i"),10);paintSel()});
+      row.addEventListener("click",function(e){e.preventDefault();go(row.getAttribute("data-slug"))});
+    });
+    acIndex=-1;setOpen(true);
+  }
+
+  function search(q){
+    var token=++reqToken;lastQ=q;
+    if(!q){close();return}
+    renderSkeleton();
+    supabaseClient.from("ringtones")
+      .select("id,title,seo_slug,download_count,artists(name),categories(name)")
+      .ilike("title","%"+q+"%")
+      .order("download_count",{ascending:false}).limit(8)
+      .then(function(res){ if(token!==reqToken)return; var d=(res&&res.data)||[]; render(d,q); })
+      .catch(function(){ if(token!==reqTimer)return; close(); });
+  }
+  var reqTimer=0,deb=null;
+  function onType(){var q=input.value.trim();clearTimeout(deb);
+    var sc=input.closest(".scanner");if(sc)sc.classList.add("scanning");
+    deb=setTimeout(function(){ if(sc)sc.classList.remove("scanning"); search(q); },200);
+  }
+  input.addEventListener("input",onType);
+  input.addEventListener("focus",function(){var q=input.value.trim();if(q&&rows.length){setOpen(true)}else if(q){search(q)}});
+  input.addEventListener("keydown",function(e){
+    if(!open){return}
+    if(e.key==="ArrowDown"){e.preventDefault();if(rows.length){acIndex=Math.min(rows.length-1,acIndex+1);paintSel()}}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(rows.length){acIndex=Math.max(0,acIndex-1);paintSel()}}
+    else if(e.key==="Enter"){if(acIndex>=0&&rows[acIndex]){e.preventDefault();go(rows[acIndex].getAttribute("data-slug"))}}
+    else if(e.key==="Escape"){e.preventDefault();close();input.blur()}
+  });
+  document.addEventListener("pointerdown",function(e){if(!panel.contains(e.target)&&e.target!==input){close()}});
+  window.addEventListener("pageshow",function(){close()});
+})();
