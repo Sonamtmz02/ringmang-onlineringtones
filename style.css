@@ -126,3 +126,15 @@ a.card-title:hover::after{right:0}
 body{overflow-wrap:break-word}
 .player-title,.dl-track,.dl-title,.card-title,a.card-title{overflow-wrap:anywhere;word-break:break-word;white-space:normal;max-width:100%}
 .player-info{min-width:0}
+
+
+/* ===== 14C-4: force long / underscore card titles to WRAP (override .truncate) ===== */
+.ring-card .card-title, a.card-title, .card-title{
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  display:block !important;
+  word-break:break-word !important;
+  overflow-wrap:anywhere !important;
+  max-width:100% !important;
+}
