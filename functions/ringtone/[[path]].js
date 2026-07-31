@@ -290,6 +290,7 @@ export async function onRequestGet(context){
   +'<script>'+CORE+'</script>'
   +'<script>'+RATING+'</script>'
   +'<script>'+REVEAL+'</script>'
+  +'<script src="/smartlink.js" defer></script>'
   +'</body></html>';
  return new Response(html,{headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=60, s-maxage=120, stale-while-revalidate=300"}});
 }
