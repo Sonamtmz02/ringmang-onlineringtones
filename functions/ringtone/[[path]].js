@@ -1,10 +1,9 @@
 /**
- * RingMang — /ringtone/[slug]-[short-id]  (Phase 14C-1)
+ * RingMang — /ringtone/[slug]-[short-id]  (Phase 14C fix)
  * Server-rendered track page + LIVE "Listener Verdict" rating console.
- * - aggregateRating JSON-LD (when ratings exist) -> rich-result eligible (not guaranteed)
- * - per-device one-vote (rater_id + UNIQUE); distribution bars; hover constellation; vote burst
- * - sound fix preserved: <audio crossorigin> + crossOrigin before src
- * Universal render (humans + crawlers).
+ * Rating FIX: vote is an UPSERT (changeable, no 400/lock); on load the device's existing
+ * vote is read from the DB (authoritative) so a previous rating always shows.
+ * aggregateRating JSON-LD (when ratings exist). Sound fix preserved (audio crossorigin).
  */
 const escHtml=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const escAttr=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -68,7 +67,6 @@ h1{font-family:"Unbounded",sans-serif;font-weight:800;font-size:clamp(2.1rem,6.4
 .seek{position:relative;display:flex;align-items:center;gap:.6rem;margin-top:1.1rem}.tm{font-family:"Space Mono",monospace;font-size:.66rem;color:#6b7280;width:2.4rem;text-align:center}
 .rng{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:3px;background:#1e3a40;outline:none;cursor:pointer}.rng::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#ff6b4a;box-shadow:0 0 9px rgba(255,107,74,.6);cursor:pointer}.rng::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:#ff6b4a;cursor:pointer}
 .vol{position:relative;display:flex;align-items:center;gap:.5rem;margin-top:.7rem}.vol .rng{max-width:8rem}
-/* ===== Listener Verdict (rating) ===== */
 .verdict{position:relative;margin-top:1.5rem;background:linear-gradient(180deg,#10151c,#0c1117);border:1px solid #1e3a40;border-radius:1rem;padding:1.2rem 1.2rem 1.3rem;overflow:hidden}
 .verdict::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#fbbf24,#fb923c);box-shadow:0 0 12px rgba(251,191,36,.5)}
 .verdict::after{content:"";position:absolute;right:-30px;top:-30px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(251,191,36,.12),transparent 70%);pointer-events:none}
@@ -90,11 +88,9 @@ h1{font-family:"Unbounded",sans-serif;font-weight:800;font-size:clamp(2.1rem,6.4
 .rstars{display:flex;gap:.15rem}
 .rstar{background:none;border:none;padding:0 .04rem;font-size:1.5rem;line-height:1;color:#2a4d55;cursor:pointer;transition:color .15s,transform .15s,text-shadow .15s}
 .rstar:hover{transform:scale(1.18)}.rstar.lit{color:#fbbf24;text-shadow:0 0 10px rgba(251,191,36,.6)}
-.rstars.voted .rstar{cursor:default}
 .rstar.burst{animation:burst .5s cubic-bezier(.34,1.6,.64,1)}@keyframes burst{0%{transform:scale(1)}40%{transform:scale(1.6);text-shadow:0 0 18px rgba(251,191,36,.9)}100%{transform:scale(1)}}
 .rate-msg{font-family:"Space Mono",monospace;font-size:.66rem;color:#56676a;opacity:0;transition:opacity .25s}.rate-msg.on{opacity:1;color:#3ddc97}
 .rate-note{width:100%;font-family:"Space Mono",monospace;font-size:.58rem;color:#4b5563;margin-top:.2rem}
-/* rails */
 .rail{padding:1.4rem 0 .4rem}.rail h2{font-family:"Unbounded",sans-serif;font-size:1rem;font-weight:700;color:#fff;margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}.rail h2 .bar{width:4px;height:1.1rem;border-radius:2px;background:#ff6b4a;box-shadow:0 0 8px rgba(255,107,74,.6)}
 .scroller{display:flex;gap:.8rem;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:.6rem;scrollbar-width:thin;scrollbar-color:#2a4d55 transparent}.scroller::-webkit-scrollbar{height:6px}.scroller::-webkit-scrollbar-thumb{background:#2a4d55;border-radius:3px}
 .rcard{scroll-snap-align:start;flex:0 0 220px;text-decoration:none;background:#102226;border:1px solid #1e3a40;border-radius:.8rem;padding:.9rem;transition:transform .25s,border-color .25s,box-shadow .25s;opacity:0;transform:translateY(16px)}
@@ -116,7 +112,7 @@ const CLIENT=`
  var viz=document.getElementById("viz"),vinyl=document.querySelector(".vinyl"),bar=document.getElementById("seek"),cur=document.getElementById("cur"),dur=document.getElementById("dur"),vol=document.getElementById("vol");
  var dlcd=document.getElementById("dlcd"),dln=document.getElementById("dln"),dlf=document.getElementById("dlf");
  var ctx=null,src=null,an=null,freq=null,real=false,raf=null,drag=false;
- function fmtT(s){if(!isFinite(s)||s<0)s=0;return Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0")}
+ function fmtT(s){if(!isFinite(s)||s<0)s=0;return Math.floor(s/60)+":"+String(Math.floor(s%60).padStart(2,"0")}
  function toast(m){var t=document.getElementById("toast");if(!t){t=document.createElement("div");t.id="toast";t.className="toast";document.body.appendChild(t)}t.textContent=m;t.style.display="block";clearTimeout(window.__rt);window.__rt=setTimeout(function(){t.style.display="none"},3000)}
  function setPlay(on){play.textContent=on?"\\u275A\\u275A":"\\u25B6";viz.classList.toggle("playing",on);vinyl.classList.toggle("spin",on)}
  function buildGraph(){if(ctx)return real;try{ctx=new(window.AudioContext||window.webkitAudioContext)();src=ctx.createMediaElementSource(audio);an=ctx.createAnalyser();an.fftSize=64;freq=new Uint8Array(an.frequencyBinCount);src.connect(an);an.connect(ctx.destination);real=true;viz.classList.add("real");return true}catch(e){return false}}
@@ -137,26 +133,27 @@ const CLIENT=`
  sh.addEventListener("click",function(){var text=(TITLE||"RingMang")+" \\u2014 free ringtone on RingMang";if(navigator.share){navigator.share({title:TITLE||"RingMang",text:text,url:CANON}).catch(function(){});return}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(CANON).then(function(){toast("\\uD83D\\uDD17 Link copied!")}).catch(function(){toast(CANON)});return}toast(CANON)});
  var dc=document.getElementById("dlcount");if(dc){var tgt=parseInt(dc.getAttribute("data-n"),10)||0,st=performance.now();(function tk(now){var p=Math.min((now-st)/1100,1);dc.textContent=Math.round(tgt*(1-Math.pow(1-p,3))).toLocaleString();if(p<1)requestAnimationFrame(tk)})(st)}
  if("IntersectionObserver"in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("revealed");io.unobserve(e.target)}})},{threshold:.1});document.querySelectorAll(".rcard").forEach(function(c){io.observe(c)})}else{document.querySelectorAll(".rcard").forEach(function(c){c.classList.add("revealed")})}
- /* ===== Listener Verdict (rating) ===== */
+ /* ===== Listener Verdict (rating) — DB-authoritative + upsert (changeable) ===== */
  (function(){
   var RID=ID;
   function rid(){var k="rm_rater_id",v;try{v=localStorage.getItem(k)}catch(e){}if(!v){v=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():("r"+Date.now()+Math.random().toString(36).slice(2,10));try{localStorage.setItem(k,v)}catch(e){}}return v}
-  var voted=null;try{voted=parseInt(localStorage.getItem("rm_vote_"+RID),10)||null}catch(e){}
+  var MY=rid();
   var rstars=document.getElementById("rstars"),rateMsg=document.getElementById("rateMsg"),avgnum=document.getElementById("avgnum"),avgcnt=document.getElementById("avgcnt"),avgstars=document.getElementById("avgstars");
+  if(!rstars){return}
   function paint(el,a){if(!el)return;var h="";for(var i=0;i<5;i++){var w=Math.max(0,Math.min(1,a-i))*100;h+='<span class="star"><span class="sb">\\u2605</span><span class="sf" style="width:'+w.toFixed(1)+'%">\\u2605</span></span>';}el.innerHTML=h}
   function lit(n){rstars.querySelectorAll(".rstar").forEach(function(b){b.classList.toggle("lit",parseInt(b.getAttribute("data-v"),10)<=n)})}
   function cntFor(s){return fetch(SUPA+"/rest/v1/ratings?ringtone_id=eq."+encodeURIComponent(RID)+"&score=eq."+s+"&select=id",{headers:{apikey:KEY,Prefer:"count=exact",Range:"0-0"}}).then(function(r){var c=r.headers.get("content-range");var n=c?parseInt(c.split("/")[1],10):0;return isNaN(n)?0:n}).catch(function(){return 0})}
   function refresh(){Promise.all([1,2,3,4,5].map(cntFor)).then(function(cs){var total=0,sum=0,mx=0;for(var i=0;i<5;i++){total+=cs[i];sum+=(i+1)*cs[i];if(cs[i]>mx)mx=cs[i]}if(mx<1)mx=1;for(var s=1;s<=5;s++){var f=document.querySelector('.dfill[data-s="'+s+'"]');var ct=document.querySelector('.dcnt[data-sc="'+s+'"]');if(f)f.style.width=(cs[s-1]/mx*100).toFixed(1)+"%";if(ct)ct.textContent=cs[s-1]}var avg=total?sum/total:0;if(avgnum)avgnum.textContent=total?avg.toFixed(1):"\\u2014";if(avgcnt)avgcnt.textContent=total;if(avgstars)paint(avgstars,avg)})}
-  var locked=!!voted;
-  function lockUI(v){locked=true;rstars.classList.add("voted");lit(v);rstars.querySelectorAll(".rstar").forEach(function(b){b.disabled=true});rateMsg.textContent="You rated \\u2605"+v+" \\u00B7 thanks";rateMsg.classList.add("on")}
-  if(voted){lit(voted);lockUI(voted)}
+  var myVote=0;
+  function showMine(v){myVote=v;lit(v);if(v){rateMsg.textContent="You rated \\u2605"+v+" \\u00B7 tap a star to change";rateMsg.classList.add("on")}else{rateMsg.textContent="";rateMsg.classList.remove("on")}}
+  function loadMyVote(){var ls=0;try{ls=parseInt(localStorage.getItem("rm_vote_"+RID),10)||0}catch(e){}return fetch(SUPA+"/rest/v1/ratings?ringtone_id=eq."+encodeURIComponent(RID)+"&rater_id=eq."+encodeURIComponent(MY)+"&select=score&limit=1",{headers:{apikey:KEY}}).then(function(r){return r.ok?r.json():[]}).then(function(rows){var v=(Array.isArray(rows)&&rows[0])?parseInt(rows[0].score,10):ls;if(v>=1&&v<=5){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v)}return v}).catch(function(){if(ls){showMine(ls)}return ls})}
   rstars.querySelectorAll(".rstar").forEach(function(b){
-   b.addEventListener("mouseenter",function(){if(!locked)lit(parseInt(b.getAttribute("data-v"),10))});
-   b.addEventListener("click",function(){if(locked)return;var v=parseInt(b.getAttribute("data-v"),10);b.classList.add("burst");rateMsg.textContent="Saving\\u2026";rateMsg.classList.add("on");
-    fetch(SUPA+"/rest/v1/ratings",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({ringtone_id:RID,rater_id:rid(),score:v})}).then(function(r){return r.text().then(function(t){return{ok:r.ok,status:r.status,body:t}})}).then(function(res){var dup=false;try{var j=JSON.parse(res.body||"{}");if(j.code==="23505"||/unique|duplicate|conflict/i.test(j.message||""))dup=true}catch(e){}if(res.ok||res.status===409||dup){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}lockUI(v);refresh()}else{rateMsg.textContent="Could not save \\u2014 try again";b.classList.remove("burst")}}).catch(function(){rateMsg.textContent="Network error \\u2014 try again";b.classList.remove("burst")})});
+    b.addEventListener("mouseenter",function(){lit(parseInt(b.getAttribute("data-v"),10))});
+    b.addEventListener("click",function(){var v=parseInt(b.getAttribute("data-v"),10);b.classList.add("burst");setTimeout(function(){b.classList.remove("burst")},520);lit(v);rateMsg.textContent="Saving\\u2026";rateMsg.classList.add("on");
+      fetch(SUPA+"/rest/v1/ratings",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json",Prefer:"return=minimal,resolution=merge-duplicates"},body:JSON.stringify({ringtone_id:RID,rater_id:MY,score:v})}).then(function(r){return r.text().then(function(t){return{ok:r.ok,status:r.status,body:t}})}).then(function(res){if(res.ok||res.status===201||res.status===200){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v);refresh()}else{var code="";try{code=(JSON.parse(res.body||"{}")||{}).code||""}catch(e){}if(code==="23505"||res.status===409){loadMyVote().then(function(){refresh()})}else{rateMsg.textContent="Could not save \\u2014 try again";rateMsg.classList.add("on");lit(myVote)}}}).catch(function(){rateMsg.textContent="Network error \\u2014 try again";rateMsg.classList.add("on");lit(myVote)})});
   });
-  rstars.addEventListener("mouseleave",function(){if(!locked)lit(voted||0)});
-  refresh();
+  rstars.addEventListener("mouseleave",function(){lit(myVote)});
+  loadMyVote().then(function(){refresh()});
  })();
 })();
 `;
@@ -179,7 +176,6 @@ export async function onRequestGet(context){
  const bySlug=await getJSON(SUPA,KEY,"ringtones?seo_slug=eq."+enc(raw)+"&select="+enc(SELECT)+"&limit=1");
  if(Array.isArray(bySlug)&&bySlug[0])row=bySlug[0];
  if(!row&&candShort){const bySid=await getJSON(SUPA,KEY,"ringtones?short_id=eq."+enc(candShort)+"&select="+enc(SELECT)+"&limit=1");if(Array.isArray(bySid)&&bySid[0]){row=bySid[0];byShort=true}}
- if(!row){const safeLike=raw.replace(/[^a-z0-9-]/g,"");if(safeLike.length>=4){const byLk=await getJSON(SUPA,KEY,"ringtones?seo_slug=like."+enc(safeLike)+"-________&order=created_at.desc&select="+enc(SELECT)+"&limit=1");if(Array.isArray(byLk)&&byLk[0])row=byLk[0]}}
  if(!row)return notFound(origin);
  if(byShort&&raw!==row.seo_slug){return new Response(null,{status:301,headers:{Location:origin+"/ringtone/"+enc(row.seo_slug),"Cache-Control":"public, max-age=86400"}})}
 
@@ -225,7 +221,7 @@ export async function onRequestGet(context){
  const rcards=(arr)=>arr.map((r,i)=>{const a=(r.artists&&r.artists.name)||"";return '<a class="rcard" href="'+origin+'/ringtone/'+enc(r.seo_slug)+'"><div class="mw" aria-hidden="true">'+waveBars(hashStr(r.title)+i,12)+'</div><div class="rt">'+escHtml(r.title)+'</div><div class="rm">'+escHtml(a||"RingMang")+'</div><div class="rd">⬇ '+fmt(r.download_count)+'</div></a>'}).join("");
  const ticker=(related.length?related:[]).map((r)=>'<a href="'+origin+'/ringtone/'+enc(r.seo_slug)+'">'+escHtml(r.title)+' <span class="d">⬇'+fmt(r.download_count)+'</span></a>').join("");
 
- const verdictHtml='<section class="verdict"><div class="vtop"><div class="vavg"><span class="vnum" id="avgnum">'+avgTxt+'</span><span class="vout">/5</span></div><div class="vstars" id="avgstars">'+avgStarsHtml+'</div><div class="vcnt"><span id="avgcnt">'+rCnt+'</span> ratings</div></div><div class="dist" id="dist">'+[5,4,3,2,1].map(function(n){return '<div class="drow"><span class="dlbl">'+n+'</span><span class="dtrack"><span class="dfill" data-s="'+n+'"></span></span><span class="dcnt" data-sc="'+n+'">0</span></div>'}).join('')+'</div><div class="rate" id="rate"><span class="rate-lbl">Your rating</span><div class="rstars" id="rstars">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="rstar" data-v="'+n+'" aria-label="'+n+' star">★</button>'}).join('')+'</div><span class="rate-msg" id="rateMsg"></span><span class="rate-note">One rating per device · helps others choose</span></div></section>';
+ const verdictHtml='<section class="verdict"><div class="vtop"><div class="vavg"><span class="vnum" id="avgnum">'+avgTxt+'</span><span class="vout">/5</span></div><div class="vstars" id="avgstars">'+avgStarsHtml+'</div><div class="vcnt"><span id="avgcnt">'+rCnt+'</span> ratings</div></div><div class="dist" id="dist">'+[5,4,3,2,1].map(function(n){return '<div class="drow"><span class="dlbl">'+n+'</span><span class="dtrack"><span class="dfill" data-s="'+n+'"></span></span><span class="dcnt" data-sc="'+n+'">0</span></div>'}).join('')+'</div><div class="rate" id="rate"><span class="rate-lbl">Your rating</span><div class="rstars" id="rstars">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="rstar" data-v="'+n+'" aria-label="'+n+' star">★</button>'}).join('')+'</div><span class="rate-msg" id="rateMsg"></span><span class="rate-note">One rating per device · tap again to change it</span></div></section>';
 
  const html='<!doctype html><html lang="en"><head>'
   +'<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
