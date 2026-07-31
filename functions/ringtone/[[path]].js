@@ -1,11 +1,9 @@
 /**
- * RingMang — /ringtone/[slug]-[short-id]  (Phase 14C-2 hardening)
- * Fixes: (A) lenient resolver with URL-encoded LIKE wildcard -> 301;
- * (B/C/D) rating isolated in its OWN <script> so a rating fault can NEVER kill the player;
- *        + a safety-net reveal script shows cards even if JS dies;
- *        + dual-source SUPABASE url (env + config.js);
- * (E) overflow-wrap so long underscore titles wrap (h1 + body).
- * Sound fix preserved (audio crossorigin). Universal render.
+ * RingMang — /ringtone/[slug]-[short-id]  (Phase 14C-3)
+ * FIX: rating click handler had an invalid else-if (SyntaxError) -> now valid if/else,
+ *      rating isolated in its own <script> so it can never kill the player.
+ * CLEAN URL: resolver exact -> short_id(301) -> prefix(301). Sound fix preserved.
+ * h1/vizsig use overflow-wrap so long underscore titles wrap.
  */
 const escHtml=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const escAttr=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -106,7 +104,6 @@ h1{font-family:"Unbounded",sans-serif;font-weight:800;font-size:clamp(2.1rem,6.4
 @media(max-width:560px){.crumb .now{max-width:42vw}}
 `;
 
-/* ===== MAIN CORE (player / download / share / reveal) — isolated from rating ===== */
 const CORE=`
 (function(){
  try{
@@ -145,7 +142,6 @@ const CORE=`
 })();
 `;
 
-/* ===== RATING — fully isolated in its own script; a fault here cannot touch the player ===== */
 const RATING=`
 (function(){
  try{
@@ -170,7 +166,10 @@ const RATING=`
  for(var i=0;i<bs.length;i++){(function(b){
   b.addEventListener("mouseenter",function(){lit(parseInt(b.getAttribute("data-v"),10))});
   b.addEventListener("click",function(){var v=parseInt(b.getAttribute("data-v"),10);b.classList.add("burst");setTimeout(function(){b.classList.remove("burst")},520);lit(v);if(rateMsg){rateMsg.textContent="Saving\\u2026";rateMsg.classList.add("on")}
-   fetch(SUPA+"/rest/v1/ratings",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json",Prefer:"return=minimal,resolution=merge-duplicates"},body:JSON.stringify({ringtone_id:RID,rater_id:MY,score:v})}).then(function(r){if(r.ok||r.status===200||r.status===201){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v);refresh()}else{return r.text().then(function(t){var code="";try{code=(JSON.parse(t||"{}")||{}).code||""}catch(e){}if(code==="23505"||r.status===409){loadMine().then(refresh)}else if(rateMsg){rateMsg.textContent="Could not save \\u2014 try again"}})}else if(rateMsg){rateMsg.textContent="Could not save \\u2014 try again"}}).catch(function(){if(rateMsg){rateMsg.textContent="Network error \\u2014 try again"}lit(myVote)});
+   fetch(SUPA+"/rest/v1/ratings",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json",Prefer:"return=minimal,resolution=merge-duplicates"},body:JSON.stringify({ringtone_id:RID,rater_id:MY,score:v})}).then(function(r){
+     if(r.ok||r.status===200||r.status===201){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v);refresh();return}
+     return r.text().then(function(t){var code="";try{code=(JSON.parse(t||"{}")||{}).code||""}catch(e){}if(code==="23505"||r.status===409){loadMine().then(refresh)}else if(rateMsg){rateMsg.textContent="Could not save \\u2014 try again"}});
+   }).catch(function(){if(rateMsg){rateMsg.textContent="Network error \\u2014 try again"}lit(myVote)});
   });
  })(bs[i])}
  rstars.addEventListener("mouseleave",function(){lit(myVote)});
@@ -179,7 +178,6 @@ const RATING=`
 })();
 `;
 
-/* ===== SAFETY NET — reveals cards even if every other script dies ===== */
 const REVEAL=`(function(){setTimeout(function(){var els=document.querySelectorAll(".rcard");for(var i=0;i<els.length;i++)els[i].classList.add("revealed")},1800)})();`;
 
 function notFound(origin){
@@ -295,4 +293,4 @@ export async function onRequestGet(context){
   +'</body></html>';
  return new Response(html,{headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=60, s-maxage=120, stale-while-revalidate=300"}});
 }
-// RM14C2_RINGTONE_END
+// RM14C3_RINGTONE_END
