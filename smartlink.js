@@ -22,7 +22,7 @@
 
     // fetch config + per-ringtone link in parallel (fast, single-row queries)
     Promise.all([
-      fetch(SUPA+"/rest/v1/ad_settings?select=global_download_link,download_mode,smartlink_behavior&id=eq.1",{headers:{apikey:KEY}})
+      fetch(SUPA+"/rest/v1/ad_settings?select=global_download_link,download_mode,smartlink_behavior&limit=1",{headers:{apikey:KEY}})
         .then(function(r){return r.ok?r.json():[]}).catch(function(){return[]}),
       fetch(SUPA+"/rest/v1/ringtones?select=download_ad_link&id=eq."+encodeURIComponent(ID),{headers:{apikey:KEY}})
         .then(function(r){return r.ok?r.json():[]}).catch(function(){return[]})
