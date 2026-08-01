@@ -30,7 +30,7 @@
     if (!banner || isStandalone) return;
     if (mode === "ios") {
       if (sub) sub.innerHTML = "Add RingMang to Your Home Screen: Below <b>Share (↗)</b> Click the button, then <b>“Add to Home Screen”</b> Select";
-      if (acceptBtn) acceptBtn.innerHTML = "बुझेँ (Got it)";
+      if (acceptBtn) acceptBtn.innerHTML = "Got it";
       if (dismissBtn) dismissBtn.style.display = "none";
     } else {
       if (sub) sub.textContent = "Add it to your home screen — opens full-screen, lighter on data, and remembers your last session.";
@@ -46,7 +46,7 @@
     e.preventDefault(); deferredPrompt = e;
     if (!dismissedRecently() && !isStandalone) setTimeout(function () { showBanner("install"); }, 2500);
   });
-  window.addEventListener("appinstalled", function () { hideBanner(); deferredPrompt = null; toast("✓ RingMang install भयो!"); });
+  window.addEventListener("appinstalled", function () { hideBanner(); deferredPrompt = null; toast("✓ RingMang has been installed!"); });
 
   if (acceptBtn) acceptBtn.addEventListener("click", async function () {
     if (isIOS || !deferredPrompt) { hideBanner(); markDismissed(); return; }
@@ -70,8 +70,8 @@
     var offline = !navigator.onLine;
     document.body.classList.toggle("is-offline", offline);
     if (pill) pill.classList.toggle("hidden", !offline);
-    if (offline && !wasOffline) toast("📡 Offline — cached library मात्र; play/download लाई connection चाहिन्छ।");
-    if (!offline && wasOffline) toast("🟢 Back online — सबै feature तयार।");
+    if (offline && !wasOffline) toast("📡 Offline - Only the cached library is available. Playing and downloading require an internet connection. ✓");
+    if (!offline && wasOffline) toast("🟢 Back online — All features are ready. ✅");
     wasOffline = offline;
   }
   window.addEventListener("online", syncOnline);
@@ -86,7 +86,7 @@
           var w = reg.installing; if (!w) return;
           w.addEventListener("statechange", function () {
             if (w.state === "installed" && navigator.serviceWorker.controller) {
-              toast("🔄 नयाँ version तयार छ — page refresh गर्नुहोस्।");
+              toast("🔄 Update available - Refresh the page.");
             }
           });
         });
