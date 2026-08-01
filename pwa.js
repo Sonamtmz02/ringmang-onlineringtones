@@ -29,7 +29,7 @@
   function showBanner(mode) {
     if (!banner || isStandalone) return;
     if (mode === "ios") {
-      if (sub) sub.innerHTML = "RingMang लाई home screen मा राख्न: तलको <b>Share (↗)</b> बटन थिच्नुहोस्, त्यसपछि <b>“Add to Home Screen”</b> छान्नुहोस्।";
+      if (sub) sub.innerHTML = "Add RingMang to Your Home Screen: Below <b>Share (↗)</b> Click the button, then <b>“Add to Home Screen”</b> Select";
       if (acceptBtn) acceptBtn.innerHTML = "बुझेँ (Got it)";
       if (dismissBtn) dismissBtn.style.display = "none";
     } else {
