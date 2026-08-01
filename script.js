@@ -385,3 +385,54 @@ document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())re
 
  }catch(err){ if(typeof console!=="undefined")console.warn("smartlink-home init failed",err); }
 })();
+/* ===== 15A-2b: Home DOWNLOAD-MODAL SmartLink (append-only, isolated).
+   Card "Get" -> download modal -> the REAL final home action is #dl-action.
+   The earlier 15A-2 module covers the player-modal button (which itself opens
+   this modal). This module covers the Get path and coordinates with 15A-2 so
+   each path opens the SmartLink EXACTLY once (no double tab). Global config
+   from app_settings; per-ringtone link from ringtones.download_ad_link.
+   ?sldebug=1 -> TOP blue panel (15A-2 green panel stays at bottom). ===== */
+(function(){
+ try{
+  if(typeof el==="undefined"||!el)return;
+  if(typeof supabaseClient==="undefined"||!supabaseClient)return;
+  var dlModal=el.dlModal, dlAction=el.dlAction, playerDL=el.playerDownload;
+  if(!dlModal||!dlAction)return;
+  var CFG=window.RINGMANG_CONFIG||{};
+  var SUPA=CFG.SUPABASE_URL||""; var KEY=CFG.SUPABASE_ANON_KEY||"";
+  var DEBUG=/[?&]sldebug=1/.test(location.search);
+  var st={supa:!!SUPA,key:!!KEY,asStatus:"-",rtStatus:"-",mode:"?",behavior:"?",glink:"?",tlink:"?",fromPlayer:"-",click:"-"};
+  function render(){ if(!DEBUG)return; var b=document.getElementById("rm-sl-debug-dm"); if(!b){b=document.createElement("div");b.id="rm-sl-debug-dm";b.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#0b0f14;color:#4cc9f0;font:11px/1.5 monospace;padding:8px 10px;border-bottom:2px solid #4cc9f0;white-space:pre-wrap;word-break:break-all;text-align:left";document.body.appendChild(b);} b.textContent="SL DEBUG (home · download-modal)\nsupa="+st.supa+" key="+st.key+" appHTTP="+st.asStatus+" rtHTTP="+st.rtStatus+"\nmode="+st.mode+" behavior="+st.behavior+" fromPlayer="+st.fromPlayer+"\nglink="+st.glink+" tlink="+st.tlink+"\nclick="+st.click; }
+  if(DEBUG)render();
+  if(!SUPA||!KEY){st.asStatus="no-config";render();return;}
+  var mode="silent",behavior="both",globalLink="",cachedLink="",fromPlayer=false;
+  function short(s){s=(s||"").trim();return s?(s.length>40?s.slice(0,40)+"…":s):"(empty)"}
+  fetch(SUPA+"/rest/v1/app_settings?setting_key=in.(smartlink_global_link,smartlink_mode,smartlink_behavior)&select=setting_key,setting_value",{headers:{apikey:KEY}})
+   .then(function(r){st.asStatus=r.status;return r.ok?r.json():[]})
+   .then(function(rows){var m={};for(var i=0;i<rows.length;i++){m[rows[i].setting_key]=rows[i].setting_value;}mode=m.smartlink_mode||"silent";behavior=m.smartlink_behavior||"both";globalLink=(m.smartlink_global_link||"").trim();st.mode=mode;st.behavior=behavior;st.glink=short(globalLink);render();})
+   .catch(function(){st.asStatus="net";render();});
+  var mo=new MutationObserver(function(){
+    if(!dlModal.classList.contains("hidden")){
+      var id=(typeof dlCurrentId!=="undefined")?dlCurrentId:null;
+      if(id){ st.rtStatus="…";render();
+        fetch(SUPA+"/rest/v1/ringtones?select=download_ad_link&id=eq."+encodeURIComponent(id),{headers:{apikey:KEY}})
+         .then(function(r){st.rtStatus=r.status;return r.ok?r.json():[]})
+         .then(function(rows){var rt=(rows&&rows[0])||{};cachedLink=(rt.download_ad_link||"").trim();st.tlink=short(cachedLink);render();})
+         .catch(function(){st.rtStatus="net";render();});
+      }
+    } else { cachedLink=""; st.tlink="(empty)"; render(); }
+  });
+  mo.observe(dlModal,{attributes:true,attributeFilter:["class"]});
+  if(playerDL)playerDL.addEventListener("click",function(){ fromPlayer=true; st.fromPlayer="set(15A-2 opens ad)"; render(); },true);
+  dlAction.addEventListener("click",function(e){
+    if(fromPlayer){ fromPlayer=false; st.fromPlayer="consumed(skip)"; st.click="path=player -> ad by 15A-2, blob here"; render(); return; }
+    if(typeof dlState!=="undefined" && dlState!=="ready"){ st.click="not-ready("+dlState+")"; render(); return; }
+    var link=cachedLink||globalLink;
+    if(mode==="adgated"&&link){
+      try{ window.open(link,"_blank","noopener,noreferrer"); st.click="OPENED "+short(link); }catch(err){ st.click="open-err:"+err.message; }
+      render();
+      if(behavior==="link_only"){ e.stopPropagation(); e.preventDefault(); st.click+=" | blob-stopped"; render(); }
+    } else { st.click=(mode!=="adgated"?"mode=silent":"no-link")+" -> blob only"; render(); }
+  },true);
+ }catch(err){ if(typeof console!=="undefined")console.warn("smartlink-home-dm init failed",err); }
+})();
