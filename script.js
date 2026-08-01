@@ -436,3 +436,54 @@ document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())re
   },true);
  }catch(err){ if(typeof console!=="undefined")console.warn("smartlink-home-dm init failed",err); }
 })();
+
+/* ===== 15A-2c: HOME SmartLink — pure-DOM, event-delegated, NO internal-var dependency.
+   Fires the SmartLink on the two buttons users actually click on home:
+     (a) card "Get"   (b) player-modal "Download this ringtone".
+   Per-ringtone link resolved from the card slug captured at click time (from the DOM);
+   falls back to the global link in app_settings. behavior 'both' = ad tab + normal flow
+   continues; 'link_only' = ad tab only. The earlier 15A-2/15A-2b blocks are inert
+   (their guard failed -> no debug bar ever appeared) so they attach nothing and cannot
+   double-fire; safe to leave. ?sldebug=1 -> a TOP blue bar proves THIS module is alive. ===== */
+(function(){
+ try{
+  var CFG=window.RINGMANG_CONFIG||{};
+  var SUPA=CFG.SUPABASE_URL||""; var KEY=CFG.SUPABASE_ANON_KEY||"";
+  var DEBUG=/[?&]sldebug=1/.test(location.search);
+  var st={supa:!!SUPA,key:!!KEY,asStatus:"-",rtStatus:"-",mode:"?",behavior:"?",glink:"?",lastSlug:"(none)",tlink:"(none)",click:"-"};
+  function render(){ if(!DEBUG)return; var b=document.getElementById("rm-sl-debug"); if(!b){b=document.createElement("div");b.id="rm-sl-debug";b.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#0b0f14;color:#4cc9f0;font:11px/1.5 monospace;padding:8px 10px;border-bottom:2px solid #4cc9f0;white-space:pre-wrap;word-break:break-all;text-align:left";document.body.appendChild(b);} b.textContent="SL DEBUG (home)\nsupa="+st.supa+" key="+st.key+" appHTTP="+st.asStatus+" rtHTTP="+st.rtStatus+"\nmode="+st.mode+" behavior="+st.behavior+" lastSlug="+st.lastSlug+"\nglink="+st.glink+" tlink="+st.tlink+"\nclick="+st.click; }
+  if(DEBUG)render();
+  if(!SUPA||!KEY){st.asStatus="no-config";render();return;}
+
+  var mode="silent",behavior="both",globalLink="",cache={},lastSlug="",pending={};
+  function short(s){s=(s||"").trim();return s?(s.length>40?s.slice(0,40)+"…":s):"(empty)"}
+  function txt(b){return (b.textContent||"").replace(/[⬇↓\s]/g,"").toLowerCase();}
+  function isGet(b){var t=txt(b);return t==="get"||t==="getringtone";}
+  function isPlayerDL(b){return /download this ringtone/i.test(b.textContent||"");}
+  function slugNear(node){var p=node;for(var i=0;i<8&&p&&p!==document.body;i++){if(p.dataset&&p.dataset.slug)return p.dataset.slug;var ds=p.querySelector&&p.querySelector("[data-slug]");if(ds)return ds.getAttribute("data-slug");var a=p.querySelector&&p.querySelector("a.card-title");if(a){var m=/\/ringtone\/([^\/?#]+)/.exec(a.getAttribute("href")||"");if(m)return decodeURIComponent(m[1]);}p=p.parentElement;}return null;}
+  function ensureCache(slug){if(!slug||cache[slug]!==undefined||pending[slug])return;pending[slug]=1;st.rtStatus="…";render();fetch(SUPA+"/rest/v1/ringtones?select=download_ad_link&seo_slug=eq."+encodeURIComponent(slug),{headers:{apikey:KEY}}).then(function(r){st.rtStatus=r.status;return r.ok?r.json():[]}).then(function(rows){var rt=(rows&&rows[0])||{};cache[slug]=(rt.download_ad_link||"").trim();if(slug===lastSlug)st.tlink=short(cache[slug]);render();}).catch(function(){st.rtStatus="net";cache[slug]="";render();});}
+
+  fetch(SUPA+"/rest/v1/app_settings?setting_key=in.(smartlink_global_link,smartlink_mode,smartlink_behavior)&select=setting_key,setting_value",{headers:{apikey:KEY}})
+   .then(function(r){st.asStatus=r.status;return r.ok?r.json():[]})
+   .then(function(rows){var m={};for(var i=0;i<rows.length;i++){m[rows[i].setting_key]=rows[i].setting_value;}mode=m.smartlink_mode||"silent";behavior=m.smartlink_behavior||"both";globalLink=(m.smartlink_global_link||"").trim();st.mode=mode;st.behavior=behavior;st.glink=short(globalLink);render();})
+   .catch(function(){st.asStatus="net";render();});
+
+  document.addEventListener("click",function(e){
+   var btn=e.target&&e.target.closest?e.target.closest("button,a,[role=button]"):null;if(!btn)return;
+   var sl=slugNear(btn);if(sl){lastSlug=sl;st.lastSlug=sl;ensureCache(sl);}
+   var player=isPlayerDL(btn),get=isGet(btn);
+   if(!player&&!get)return;
+   var link=(lastSlug&&cache[lastSlug]!==undefined?cache[lastSlug]:"")||globalLink;
+   if(lastSlug&&cache[lastSlug]!==undefined)st.tlink=short(cache[lastSlug]);
+   if(mode==="adgated"&&link){
+     try{window.open(link,"_blank","noopener,noreferrer");st.click=(player?"player":"get")+" OPENED "+short(link);}
+     catch(err){st.click="open-err:"+err.message;}
+     render();
+     if(behavior==="link_only"){e.stopImmediatePropagation();e.preventDefault();st.click+=" | flow-stopped";render();}
+   } else {
+     st.click=(player?"player":"get")+" "+(mode!=="adgated"?"mode=silent":"no-link")+" -> normal";render();
+   }
+  },true);
+
+ }catch(err){if(typeof console!=="undefined")console.warn("smartlink-home-pure init failed",err);}
+})();
