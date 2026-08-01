@@ -98,10 +98,10 @@ export async function onRequest(context) {
   if (!SUPA || !KEY) return response;
   const ctype = response.headers.get("content-type") || "";
   if (!ctype.includes("text/html")) return response;
-  let metas;
-  try { metas = (await load(SUPA, KEY)).metas || []; } catch (e) { return response; }
-  if (!metas.length) return response;
-  const inject = metas.map((m) => '<meta name="' + esc(m.n) + '" content="' + esc(m.c) + '">').join("");
+  let metas = [];
+  try { metas = (await load(SUPA, KEY)).metas || []; } catch (e) { metas = []; }
+  const fav = '<link rel="icon" type="image/png" sizes="96x96" href="/favicon.png"><link rel="apple-touch-icon" href="/favicon.png">';
+  const inject = fav + metas.map((m) => '<meta name="' + esc(m.n) + '" content="' + esc(m.c) + '">').join("");
   try {
     const rewriter = new HTMLRewriter().on("head", { element(el) { el.append(inject, { html: true }); } });
     return rewriter.transform(response);
