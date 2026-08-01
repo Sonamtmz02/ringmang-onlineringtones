@@ -73,6 +73,11 @@ export async function onRequest(context) {
     return new Response("vm metas=" + c.metas.length + " files=" + Object.keys(c.files).length, { headers: { "content-type": "text/plain", "cache-control": "no-store", "x-robots-tag": "noindex" } });
   }
 
+  // (favicon) on-brand raster PNG — what Google's favicon pipeline actually reads
+  if (request.method === "GET" && url.pathname === "/favicon.png") {
+    return new Response(iconBytes(), { headers: { "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable", "x-content-type-options": "nosniff" } });
+  }
+  
   // (2) file verification serve (15C-ready)
   if (SUPA && KEY && request.method === "GET") {
     try {
