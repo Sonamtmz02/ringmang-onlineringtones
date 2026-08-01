@@ -4,7 +4,7 @@
  * Mailto fallback link. Honest "where messages go" note. Alive ambient (sky/teal).
  */
 const escHtml=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const MAILTO="hello@ringmang.example";
+const MAILTO="ringmangsupport@gmail.com";
 const CSS=`*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:"Outfit",system-ui,sans-serif;background:#071417;color:#c7d2d6;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;line-height:1.72}
 .progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:60;background:rgba(255,255,255,.04)}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#4cc9f0,#3ddc97,#fbbf24);box-shadow:0 0 10px rgba(76,201,240,.5);transition:width .12s linear}
 .watermark{position:fixed;top:46%;left:-3vw;transform:translateY(-50%);font-family:"Space Mono",monospace;font-size:40vh;line-height:1;color:#4cc9f0;opacity:.04;z-index:0;pointer-events:none;user-select:none}
