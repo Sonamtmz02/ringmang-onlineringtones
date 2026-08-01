@@ -487,3 +487,30 @@ document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())re
 
  }catch(err){if(typeof console!=="undefined")console.warn("smartlink-home-pure init failed",err);}
 })();
+
+/* ===== 15B-1: Verification meta runtime fallback + ?vm=1 proof badge (append-only).
+   The edge middleware already injects these into raw HTML (verifier-safe). This block
+   is belt-and-suspenders for any client-side checker, and shows a small ?vm=1 badge so
+   you can PROVE on mobile that verification metas are live (mobile has no view-source). ===== */
+(function(){
+ try{
+  var CFG=window.RINGMANG_CONFIG||{}; var SUPA=CFG.SUPABASE_URL||""; var KEY=CFG.SUPABASE_ANON_KEY||"";
+  if(!SUPA||!KEY)return;
+  var SHOW=/[?&]vm=1/.test(location.search);
+  function escA(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+  fetch(SUPA+"/rest/v1/verifications?enabled=eq.true&vtype=eq.meta&select=meta_name,meta_content",{headers:{apikey:KEY}})
+   .then(function(r){return r.ok?r.json():[]})
+   .then(function(rows){
+     var n=0;
+     (rows||[]).forEach(function(row){
+       if(!row.meta_name||!row.meta_content)return;
+       var sel='meta[name="'+row.meta_name.replace(/"/g,'\\"')+'"][content="'+row.meta_content.replace(/"/g,'\\"')+'"]';
+       if(document.head.querySelector(sel))return; // already present (middleware injected) -> skip
+       var m=document.createElement("meta"); m.setAttribute("name",row.meta_name); m.setAttribute("content",row.meta_content); document.head.appendChild(m);
+     });
+     // count how many enabled metas are now in head
+     (rows||[]).forEach(function(row){ if(row.meta_name&&row.meta_content&&document.head.querySelector('meta[name="'+row.meta_name.replace(/"/g,'\\"')+'"]'))n++; });
+     if(SHOW){ var b=document.createElement("div"); b.style.cssText="position:fixed;left:8px;bottom:8px;z-index:99999;background:#0b0f14;color:#3ddc97;font:11px/1.4 monospace;padding:6px 9px;border:1px solid #3ddc97;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.5)"; b.textContent="✓ "+n+" verification meta live"; document.body.appendChild(b); }
+   }).catch(function(){});
+ }catch(e){}
+})();
