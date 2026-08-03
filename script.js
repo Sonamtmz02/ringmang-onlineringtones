@@ -514,3 +514,37 @@ document.addEventListener("DOMContentLoaded",async()=>{if(!createSafeClient())re
    }).catch(function(){});
  }catch(e){}
 })();
+
+/* ===== 15C-2: render saved placements on the user home (APPEND-ONLY, safe).
+   Reads ad_settings slots (site_head/header/incontent/footer). Only renders slots
+   that are is_active AND non-empty. HEAD(format=script) -> injected into <head>
+   after consent. Zones -> injected into matching home zones. If a zone anchor is
+   missing it is skipped (never breaks the page). Consent-gated: if the visitor
+   declined ad consent, ad placements are not loaded. try/catch everywhere. ===== */
+(function(){
+ if(typeof supabaseClient==="undefined")return;
+ function ready(fn){if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",fn);else fn();}
+ function consentDeclined(){try{var ks=["rm_ad_consent","ad_consent","rm-consent","consent"];for(var i=0;i<ks.length;i++){var v=localStorage.getItem(ks[i]);if(v==="false"||v==="0"||v==="declined"||v==="no")return true;}}catch(e){}return false;}
+ function mountHTML(container,html){container.innerHTML=html;try{Array.prototype.slice.call(container.querySelectorAll("script")).forEach(function(old){var s=document.createElement("script");for(var i=0;i<old.attributes.length;i++){var a=old.attributes[i];s.setAttribute(a.name,a.value);}if(old.getAttribute("src")){s.src=old.getAttribute("src");}else{s.text=old.textContent;}old.parentNode.replaceChild(s,old);});}catch(e){}}
+ function zoneBox(slot,margin){var d=document.createElement("div");d.setAttribute("data-adzone",slot);d.style.cssText=margin;return d;}
+ function render(rows){
+   var bySlot={};for(var i=0;i<rows.length;i++)bySlot[rows[i].slot_name]=rows[i];
+   var declined=consentDeclined();
+   // HEAD: format=script, active -> into <head>
+   var head=bySlot["site_head"];
+   if(head&&head.is_active&&(head.ad_code||"").trim()&&!declined){try{var hb=zoneBox("site_head","");document.head.appendChild(hb);mountHTML(hb,head.ad_code);}catch(e){}}
+   if(declined)return; // consent declined -> skip visual zones too
+   // HEADER: after top bar
+   var hd=bySlot["site_header"];
+   if(hd&&hd.is_active&&(hd.ad_code||"").trim()){try{var anchor=document.querySelector("header")||document.querySelector(".top")||document.body;var box=zoneBox("site_header","margin:.6rem auto;max-width:1080px;padding:0 1rem;");anchor.insertAdjacentElement("afterend",box);mountHTML(box,hd.ad_code);}catch(e){}}
+   // IN-CONTENT: between cards
+   var ic=bySlot["site_incontent"];
+   if(ic&&ic.is_active&&(ic.ad_code||"").trim()){try{var grid=document.querySelector("#ringtone-grid")||document.querySelector(".card-list")||document.querySelector("main");if(grid){var ib=zoneBox("site_incontent","margin:1rem 0;");var second=grid.children&&grid.children[1];if(second){grid.insertBefore(ib,second);}else{grid.appendChild(ib);}mountHTML(ib,ic.ad_code);}}catch(e){}}
+   // FOOTER: above footer
+   var ft=bySlot["site_footer"];
+   if(ft&&ft.is_active&&(ft.ad_code||"").trim()){try{var f=document.querySelector("footer");if(f){var fb=zoneBox("site_footer","max-width:1080px;margin:0 auto;padding:0 1rem .8rem;");f.insertAdjacentElement("beforebegin",fb);mountHTML(fb,ft.ad_code);}}catch(e){}}
+ }
+ ready(function(){
+   supabaseClient.from("ad_settings").select("*").in("slot_name",["site_head","site_header","site_incontent","site_footer"]).then(function(res){var rows=(res&&res.data)||[];render(rows);}).catch(function(){});
+ });
+})();
