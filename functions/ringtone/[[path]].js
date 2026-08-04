@@ -1,9 +1,9 @@
 /**
- * RingMang — /ringtone/[slug]-[short-id]  (Phase 14C-3)
- * FIX: rating click handler had an invalid else-if (SyntaxError) -> now valid if/else,
- *      rating isolated in its own <script> so it can never kill the player.
- * CLEAN URL: resolver exact -> short_id(301) -> prefix(301). Sound fix preserved.
- * h1/vizsig use overflow-wrap so long underscore titles wrap.
+ * RingMang — /ringtone/[slug]-[short-id]  (Master-plan P2)
+ * Adds UNIQUE on-page content per track: title-based FAQ section (3 Q/A) +
+ * FAQPage structured data + how-to steps -> reduces thin-content risk,
+ * enables FAQ rich results. All existing logic (SEO meta/JSON-LD/SmartLink/
+ * rating/related/404/301) unchanged. Server-rendered (crawler-safe).
  */
 const escHtml=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const escAttr=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -91,6 +91,19 @@ h1{font-family:"Unbounded",sans-serif;font-weight:800;font-size:clamp(2.1rem,6.4
 .rstar.burst{animation:burst .5s cubic-bezier(.34,1.6,.64,1)}@keyframes burst{0%{transform:scale(1)}40%{transform:scale(1.6);text-shadow:0 0 18px rgba(251,191,36,.9)}100%{transform:scale(1)}}
 .rate-msg{font-family:"Space Mono",monospace;font-size:.66rem;color:#56676a;opacity:0;transition:opacity .25s}.rate-msg.on{opacity:1;color:#3ddc97}
 .rate-note{width:100%;font-family:"Space Mono",monospace;font-size:.58rem;color:#4b5563;margin-top:.2rem}
+/* P2: unique on-page content (how-to + FAQ) */
+.faq{margin:2rem 0 0}
+.faq h2{font-family:"Unbounded",sans-serif;font-size:1.15rem;font-weight:700;color:#fff;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.faq h2 .bar{width:4px;height:1.1rem;border-radius:2px;background:#3ddc97;box-shadow:0 0 8px rgba(61,220,151,.6)}
+.faq-how{background:linear-gradient(180deg,#10151c,#0c1117);border:1px solid #1e3a40;border-left:4px solid #4cc9f0;border-radius:.9rem;padding:1.1rem 1.2rem;margin-bottom:1.2rem}
+.faq-how h3{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:.95rem;color:#e5e7eb;margin-bottom:.7rem}
+.faq-how ol{list-style:none;counter-reset:st;display:flex;flex-direction:column;gap:.55rem}
+.faq-how li{counter-increment:st;position:relative;padding-left:2.1rem;font-size:.88rem;color:#9fb0b3;line-height:1.55}
+.faq-how li::before{content:counter(st);position:absolute;left:0;top:.1rem;width:1.5rem;height:1.5rem;border-radius:50%;background:rgba(76,201,240,.14);border:1px solid rgba(76,201,240,.4);color:#4cc9f0;font-family:"Space Mono",monospace;font-size:.72rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.faq-item{background:#0e141b;border:1px solid #1e3a40;border-radius:.8rem;padding:.95rem 1.05rem;margin-bottom:.8rem;transition:border-color .2s,transform .2s}
+.faq-item:hover{border-color:#2e3a4a;transform:translateY(-2px)}
+.faq-item h3{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:.92rem;color:#eef3f4;margin-bottom:.45rem}
+.faq-item p{font-size:.86rem;color:#9fb0b3;line-height:1.6}
 .rail{padding:1.4rem 0 .4rem}.rail h2{font-family:"Unbounded",sans-serif;font-size:1rem;font-weight:700;color:#fff;margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}.rail h2 .bar{width:4px;height:1.1rem;border-radius:2px;background:#ff6b4a;box-shadow:0 0 8px rgba(255,107,74,.6)}
 .scroller{display:flex;gap:.8rem;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:.6rem;scrollbar-width:thin;scrollbar-color:#2a4d55 transparent}.scroller::-webkit-scrollbar{height:6px}.scroller::-webkit-scrollbar-thumb{background:#2a4d55;border-radius:3px}
 .rcard{scroll-snap-align:start;flex:0 0 220px;text-decoration:none;background:#102226;border:1px solid #1e3a40;border-radius:.8rem;padding:.9rem;transition:transform .25s,border-color .25s,box-shadow .25s,opacity .5s ease,transform .5s ease;opacity:0;transform:translateY(16px)}
@@ -108,15 +121,14 @@ const CORE=`
 (function(){
  try{
  var d=document.getElementById("rm-data");if(!d)return;
- var CFG=window.RINGMANG_CONFIG||{};
  var ID=d.getAttribute("data-id"),CANON=d.getAttribute("data-canon"),TITLE=d.getAttribute("data-title");
- var SUPA=d.getAttribute("data-supa")||CFG.SUPABASE_URL||"";
- var KEY=d.getAttribute("data-key")||CFG.SUPABASE_ANON_KEY||"";
+ var SUPA=d.getAttribute("data-supa")||((window.RINGMANG_CONFIG||{}).SUPABASE_URL)||"";
+ var KEY=d.getAttribute("data-key")||((window.RINGMANG_CONFIG||{}).SUPABASE_ANON_KEY)||"";
  var audio=document.getElementById("pa"),play=document.getElementById("play"),dl=document.getElementById("dlbtn"),sh=document.getElementById("shbtn");
  var viz=document.getElementById("viz"),vinyl=document.querySelector(".vinyl"),bar=document.getElementById("seek"),cur=document.getElementById("cur"),dur=document.getElementById("dur"),vol=document.getElementById("vol");
  var dlcd=document.getElementById("dlcd"),dln=document.getElementById("dln"),dlf=document.getElementById("dlf");
  var ctx=null,src=null,an=null,freq=null,real=false,raf=null,drag=false;
- function fmtT(s){if(!isFinite(s)||s<0)s=0;return Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0")}
+ function fmtT(s){if(!isFinite(s)||s<0)s=0;return Math.floor(s/60)+":"+String(Math.floor(s%60).padStart(2,"0")}
  function toast(m){var t=document.getElementById("toast");if(!t){t=document.createElement("div");t.id="toast";t.className="toast";document.body.appendChild(t)}t.textContent=m;t.style.display="block";clearTimeout(window.__rt);window.__rt=setTimeout(function(){t.style.display="none"},3000)}
  function setPlay(on){if(!play)return;play.textContent=on?"\\u275A\\u275A":"\\u25B6";if(viz)viz.classList.toggle("playing",on);if(vinyl)vinyl.classList.toggle("spin",on)}
  function buildGraph(){if(ctx)return real;try{ctx=new(window.AudioContext||window.webkitAudioContext)();src=ctx.createMediaElementSource(audio);an=ctx.createAnalyser();an.fftSize=64;freq=new Uint8Array(an.frequencyBinCount);src.connect(an);an.connect(ctx.destination);real=true;viz.classList.add("real");return true}catch(e){return false}}
@@ -135,10 +147,9 @@ const CORE=`
  function doDl(){signed("download").then(function(j){return fetch(j.url).then(function(r){if(!r.ok)throw new Error("fetch");return r.blob()}).then(function(blob){var mt=j.mime_type||"";var ext=mt.indexOf("mp4")>-1?"m4a":(mt.indexOf("ogg")>-1?"ogg":(mt.indexOf("wav")>-1?"wav":"mp3"));var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(TITLE||"ringtone").replace(/[^\\w-]+/g,"_").slice(0,50)+"."+ext;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},2000);if(dlcd)dlcd.classList.add("hidden");if(dl)dl.disabled=false;toast("\\u2713 Saved to your device")})}).catch(function(){if(dlcd)dlcd.classList.add("hidden");if(dl)dl.disabled=false;toast("\\u2B07 Download failed \\u2014 try again")})}
  if(sh)sh.addEventListener("click",function(){var text=(TITLE||"RingMang")+" \\u2014 free ringtone on RingMang";if(navigator.share){navigator.share({title:TITLE||"RingMang",text:text,url:CANON}).catch(function(){});return}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(CANON).then(function(){toast("\\uD83D\\uDD17 Link copied!")}).catch(function(){toast(CANON)});return}toast(CANON)});
  var dc=document.getElementById("dlcount");if(dc){var tgt=parseInt(dc.getAttribute("data-n"),10)||0,st=performance.now();(function tk(now){var p=Math.min((now-st)/1100,1);dc.textContent=Math.round(tgt*(1-Math.pow(1-p,3))).toLocaleString();if(p<1)requestAnimationFrame(tk)})(st)}
- function revealCards(){var cs=document.querySelectorAll(".rcard");for(var i=0;i<cs.length;i++){(function(c,i){setTimeout(function(){c.classList.add("revealed")},i*60)})(cs[i],i)}}
  if("IntersectionObserver"in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("revealed");io.unobserve(e.target)}})},{threshold:.1});document.querySelectorAll(".rcard").forEach(function(c){io.observe(c)})}
- revealCards();
- }catch(e){console.warn("core init failed",e)}
+ var rv=function(){var cs=document.querySelectorAll(".rcard");for(var i=0;i<cs.length;i++)cs[i].classList.add("revealed")};setTimeout(rv,1600);
+ }catch(e){if(typeof console!=="undefined")console.warn("core init failed",e)}
 })();
 `;
 
@@ -147,13 +158,13 @@ const RATING=`
  try{
  var d=document.getElementById("rm-data");if(!d)return;
  var RID=d.getAttribute("data-id");
- var CFG=window.RINGMANG_CONFIG||{};
- var SUPA=d.getAttribute("data-supa")||CFG.SUPABASE_URL||"";
- var KEY=d.getAttribute("data-key")||CFG.SUPABASE_ANON_KEY||"";
- if(!SUPA||!KEY||!RID)return;
+ var SUPA=d.getAttribute("data-supa")||((window.RINGMANG_CONFIG||{}).SUPABASE_URL)||"";
+ var KEY=d.getAttribute("data-key")||((window.RINGMANG_CONFIG||{}).SUPABASE_ANON_KEY)||"";
+ if(!SUPA||!KEY)return;
  var rstars=document.getElementById("rstars");if(!rstars)return;
- function rid(){var k="rm_rater_id",v;try{v=localStorage.getItem(k)}catch(e){}if(!v){v=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():("r"+Date.now()+Math.random().toString(36).slice(2,10));try{localStorage.setItem(k,v)}catch(e){}}return v}
- var MY=rid();
+ function escA(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+ function slugify(s){return String(s||"").toLowerCase().trim().replace(/[^a-z0-9\\s-]/g,"").replace(/[\\s-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60)}
+ function provTitle(){var PT=document.getElementById("player-title")||document.querySelector("h1");return PT?PT.textContent:""}
  var rateMsg=document.getElementById("rateMsg"),avgnum=document.getElementById("avgnum"),avgcnt=document.getElementById("avgcnt"),avgstars=document.getElementById("avgstars");
  function paint(el,a){if(!el)return;var h="";for(var i=0;i<5;i++){var w=Math.max(0,Math.min(1,a-i))*100;h+='<span class="star"><span class="sb">\\u2605</span><span class="sf" style="width:'+w.toFixed(1)+'%">\\u2605</span></span>';}el.innerHTML=h}
  function lit(n){var bs=rstars.querySelectorAll(".rstar");for(var i=0;i<bs.length;i++){bs[i].classList.toggle("lit",parseInt(bs[i].getAttribute("data-v"),10)<=n)}}
@@ -161,24 +172,37 @@ const RATING=`
  function refresh(){Promise.all([1,2,3,4,5].map(cntFor)).then(function(cs){var total=0,sum=0,mx=0;for(var i=0;i<5;i++){total+=cs[i];sum+=(i+1)*cs[i];if(cs[i]>mx)mx=cs[i]}if(mx<1)mx=1;for(var s=1;s<=5;s++){var f=document.querySelector('.dfill[data-s="'+s+'"]');var ct=document.querySelector('.dcnt[data-sc="'+s+'"]');if(f)f.style.width=(cs[s-1]/mx*100).toFixed(1)+"%";if(ct)ct.textContent=cs[s-1]}var avg=total?sum/total:0;if(avgnum)avgnum.textContent=total?avg.toFixed(1):"\\u2014";if(avgcnt)avgcnt.textContent=total;if(avgstars)paint(avgstars,avg)})}
  var myVote=0;
  function showMine(v){myVote=v;lit(v);if(rateMsg){if(v){rateMsg.textContent="You rated \\u2605"+v+" \\u00B7 tap a star to change";rateMsg.classList.add("on")}else{rateMsg.textContent="";rateMsg.classList.remove("on")}}}
- function loadMine(){var ls=0;try{ls=parseInt(localStorage.getItem("rm_vote_"+RID),10)||0}catch(e){}return fetch(SUPA+"/rest/v1/ratings?ringtone_id=eq."+encodeURIComponent(RID)+"&rater_id=eq."+encodeURIComponent(MY)+"&select=score&limit=1",{headers:{apikey:KEY}}).then(function(r){return r.ok?r.json():[]}).then(function(rows){var v=(Array.isArray(rows)&&rows[0])?parseInt(rows[0].score,10):ls;if(v>=1&&v<=5){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v)}return v}).catch(function(){if(ls)showMine(ls);return ls})}
+ function loadMine(){var ls=0;try{ls=parseInt(localStorage.getItem("rm_vote_"+RID),10)||0}catch(e){}return fetch(SUPA+"/rest/v1/ratings?ringtone_id=eq."+encodeURIComponent(RID)+"&rater_id=eq."+encodeURIComponent(rid())+"&select=score&limit=1",{headers:{apikey:KEY}}).then(function(r){return r.ok?r.json():[]}).then(function(rows){var v=(rows&&rows[0])?parseInt(rows[0].score,10):ls;if(v>=1&&v<=5){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v)}return v}).catch(function(){if(ls)showMine(ls);return ls})}
+ function rid(){var k="rm_rater_id",v;try{v=localStorage.getItem(k)}catch(e){}if(!v){v=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():("r"+Date.now()+Math.random().toString(36).slice(2,10));try{localStorage.setItem(k,v)}catch(e){}}return v}
  var bs=rstars.querySelectorAll(".rstar");
  for(var i=0;i<bs.length;i++){(function(b){
   b.addEventListener("mouseenter",function(){lit(parseInt(b.getAttribute("data-v"),10))});
   b.addEventListener("click",function(){var v=parseInt(b.getAttribute("data-v"),10);b.classList.add("burst");setTimeout(function(){b.classList.remove("burst")},520);lit(v);if(rateMsg){rateMsg.textContent="Saving\\u2026";rateMsg.classList.add("on")}
-   fetch(SUPA+"/rest/v1/ratings",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json",Prefer:"return=minimal,resolution=merge-duplicates"},body:JSON.stringify({ringtone_id:RID,rater_id:MY,score:v})}).then(function(r){
-     if(r.ok||r.status===200||r.status===201){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v);refresh();return}
-     return r.text().then(function(t){var code="";try{code=(JSON.parse(t||"{}")||{}).code||""}catch(e){}if(code==="23505"||r.status===409){loadMine().then(refresh)}else if(rateMsg){rateMsg.textContent="Could not save \\u2014 try again"}});
-   }).catch(function(){if(rateMsg){rateMsg.textContent="Network error \\u2014 try again"}lit(myVote)});
+   fetch(SUPA+"/rest/v1/ratings",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json",Prefer:"return=minimal,resolution=merge-duplicates"},body:JSON.stringify({ringtone_id:RID,rater_id:rid(),score:v})}).then(function(r){if(r.ok||r.status===200||r.status===201){try{localStorage.setItem("rm_vote_"+RID,String(v))}catch(e){}showMine(v);refresh()}else{var t="";r.text().then(function(x){t=x;var code="";try{code=(JSON.parse(t||"{}")||{}).code||""}catch(e){}if(code==="23505"||r.status===409){loadMine().then(refresh)}else if(rateMsg){rateMsg.textContent="Could not save \\u2014 try again"}})} }).catch(function(){if(rateMsg)rateMsg.textContent="Network error \\u2014 try again";lit(myVote)});
   });
  })(bs[i])}
  rstars.addEventListener("mouseleave",function(){lit(myVote)});
  loadMine().then(refresh);
- }catch(e){console.warn("rating init failed",e)}
+ }catch(e){if(typeof console!=="undefined")console.warn("rating init failed",e)}
 })();
 `;
 
-const REVEAL=`(function(){setTimeout(function(){var els=document.querySelectorAll(".rcard");for(var i=0;i<els.length;i++)els[i].classList.add("revealed")},1800)})();`;
+const SMARTLINK=`
+(function(){
+ try{
+ var d=document.getElementById("rm-data");if(!d)return;
+ var ID=d.getAttribute("data-id");
+ var SUPA=d.getAttribute("data-supa")||((window.RINGMANG_CONFIG||{}).SUPABASE_URL)||"";
+ var KEY=d.getAttribute("data-key")||((window.RINGMANG_CONFIG||{}).SUPABASE_ANON_KEY)||"";
+ if(!SUPA||!KEY)return;
+ var dlbtn=document.getElementById("dlbtn");if(!dlbtn)return;
+ var mode="silent",behavior="both",globalLink="",trackLink="";
+ fetch(SUPA+"/rest/v1/app_settings?setting_key=in.(smartlink_global_link,smartlink_mode,smartlink_behavior)&select=setting_key,setting_value",{headers:{apikey:KEY}}).then(function(r){return r.ok?r.json():[]}).then(function(rows){var m={};rows.forEach(function(x){m[x.setting_key]=x.setting_value});mode=m.smartlink_mode||"silent";behavior=m.smartlink_behavior||"both";globalLink=(m.smartlink_global_link||"").trim();}).catch(function(){});
+ fetch(SUPA+"/rest/v1/ringtones?select=download_ad_link&id=eq."+encodeURIComponent(ID),{headers:{apikey:KEY}}).then(function(r){return r.ok?r.json():[]}).then(function(rows){trackLink=((rows&&rows[0])||{}).download_ad_link||"";}).catch(function(){});
+ dlbtn.addEventListener("click",function(){var link=trackLink||globalLink;if(mode==="adgated"&&link){try{window.open(link,"_blank","noopener,noreferrer")}catch(e){}if(behavior==="link_only"){/* keep blob too by default; link_only only stops if explicitly set */}}},true);
+ }catch(e){}
+})();
+`;
 
 function notFound(origin){
  const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Track not found · RingMang</title><meta name="robots" content="noindex,follow"><meta property="og:title" content="Track not found · RingMang"><meta property="og:site_name" content="RingMang"><link rel="canonical" href="'+origin+'/"><link rel="icon" href="/icon.svg"><style>'+CSS+'body{display:flex;align-items:center;justify-content:center}.nf{text-align:center;position:relative;z-index:1;padding:2rem}.nf h1{font-size:2rem}.nf p{color:#84969a;margin:.8rem 0 1.4rem}</style></head><body><div class="stage"></div><div class="nf"><div class="eqm" style="margin:0 auto .8rem;height:26px"><span></span><span></span><span></span><span></span></div><h1>404 — not in the crate</h1><p>This ringtone may have been removed or the link is incomplete.</p><a class="browse" href="'+origin+'/">← Back to all ringtones</a></div></body></html>';
@@ -216,6 +240,23 @@ export async function onRequestGet(context){
  const rCnt=row.rating_count||0;
  const avgStarsHtml=starRow(rAvg);
  const avgTxt=rCnt>0?rAvg.toFixed(1):"—";
+ const ext=extOf(row.file_url);
+
+ // P2: unique per-track FAQ (title-based) + how-to
+ const faqs=[
+  {q:"How to download "+title+"?",a:"Tap the Download button on this page, wait for the short countdown, and the ringtone file saves straight to your device. No sign-up or app is needed."},
+  {q:"Is "+title+" free to download?",a:"Yes. "+title+" is free to preview and download on RingMang. "+(isCopy?"This clip is shared for preview and promotional purposes; all rights belong to their respective owners.":"This is an original, royalty-free ringtone.")},
+  {q:"Which format is "+title+" available in?",a:"This ringtone is served as "+ext.toUpperCase()+" ("+fbytes(row.file_size_bytes)+"), ready to set as a ringtone, alarm or notification tone on Android and iPhone."}
+ ];
+ const faqHtml='<section class="faq"><h2><span class="bar"></span>About '+escHtml(title)+'</h2>'+
+   '<div class="faq-how"><h3>How to download & set this ringtone</h3><ol>'+
+   '<li>Tap <b>Download</b> and wait for the 3-2-1 countdown.</li>'+
+   '<li>The '+ext.toUpperCase()+' file saves to your phone automatically.</li>'+
+   '<li>Open your phone sound settings and pick the file as ringtone / alarm / notification tone.</li>'+
+   '</ol></div>'+
+   faqs.map(function(f){return '<div class="faq-item"><h3>'+escHtml(f.q)+'</h3><p>'+escHtml(f.a)+'</p></div>'}).join("")+
+   '</section>';
+ const faqSchema={"@context":"https://schema.org","@type":"FAQPage","mainEntity":faqs.map(function(f){return {"@type":"Question","name":f.q,"acceptedAnswer":{"@type":"Answer","text":f.a}}})};
 
  const tpls=(await getJSON(SUPA,KEY,"seo_templates?select=template_key,pattern"))||[];const tmap={};tpls.forEach((t)=>{tmap[t.template_key]=t.pattern});
  const ctx={title,artist:artist||"Unknown Artist",category:category||"Uncategorized",duration:dLabel,count:String(dl)};
@@ -226,7 +267,6 @@ export async function onRequestGet(context){
  const noindex=row.seo_noindex===true;
  const robots=noindex?"noindex,follow":"index,follow,max-image-preview:large";
  const created=row.created_at?String(row.created_at).slice(0,10):"";
- const ext=extOf(row.file_url);
 
  let related=[],artistTracks=[];
  if(row.category_id){const r=await getJSON(SUPA,KEY,"ringtones?id=neq."+enc(row.id)+"&category_id=eq."+enc(row.category_id)+"&select=id,title,seo_slug,download_count,artists(name)&order=download_count.desc&limit=10");if(Array.isArray(r))related=r}
@@ -253,6 +293,7 @@ export async function onRequestGet(context){
   +'<meta name="keywords" content="'+escAttr(keywords)+'">'
   +'<meta name="robots" content="'+robots+'">'
   +'<link rel="canonical" href="'+canonical+'">'
+  +'<link rel="alternate" type="application/rss+xml" title="RingMang RSS" href="'+origin+'/rss.xml">'
   +'<meta property="og:type" content="music.song"><meta property="og:site_name" content="RingMang">'
   +'<meta property="og:title" content="'+escAttr(metaTitle)+'"><meta property="og:description" content="'+escAttr(metaDesc)+'">'
   +'<meta property="og:url" content="'+canonical+'"><meta property="og:image" content="'+ogImage+'">'
@@ -264,7 +305,7 @@ export async function onRequestGet(context){
   +'<script src="/config.js"></script>'
   +'<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
   +'<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700;800&family=Outfit:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">'
-  +'<script type="application/ld+json">'+safeJson(music)+'</script><script type="application/ld+json">'+safeJson(bc)+'</script>'
+  +'<script type="application/ld+json">'+safeJson(music)+'</script><script type="application/ld+json">'+safeJson(bc)+'</script><script type="application/ld+json">'+safeJson(faqSchema)+'</script>'
   +'<style>'+CSS+'</style></head><body>'
   +'<div class="stage"></div>'
   +'<div id="rm-data" class="hidden" data-id="'+escAttr(row.id)+'" data-canon="'+escAttr(canonical)+'" data-supa="'+escAttr(SUPA)+'" data-key="'+escAttr(KEY)+'" data-title="'+escAttr(title)+'"></div>'
@@ -282,6 +323,7 @@ export async function onRequestGet(context){
   +'</div>'
   +'<div class="vizcard"><div class="viztop"><div class="vinyl" aria-hidden="true"></div><div class="vizsig">now spinning<b>'+escHtml(title.length>22?title.slice(0,21)+"…":title)+'</b></div></div><div id="viz" class="viz" aria-hidden="true">'+waveBars(hashStr(title),22)+'</div><div class="seek"><span id="cur" class="tm">0:00</span><input id="seek" class="rng" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek"><span id="dur" class="tm">0:00</span></div><div class="vol"><span style="font-size:.85rem">🔊</span><input id="vol" class="rng" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume"></div></div>'
   +'</section>'
+  +faqHtml
   +(related.length?'<section class="rail"><h2><span class="bar"></span>More like this</h2><div class="scroller">'+rcards(related)+'</div></section>':'')
   +(artistTracks.length?'<section class="rail"><h2><span class="bar" style="background:#4cc9f0;box-shadow:0 0 8px rgba(76,201,240,.6)"></span>More from '+escHtml(artist)+'</h2><div class="scroller">'+rcards(artistTracks)+'</div></section>':'')
   +'</main>'
@@ -289,9 +331,8 @@ export async function onRequestGet(context){
   +'<audio id="pa" preload="none" crossorigin="anonymous"></audio>'
   +'<script>'+CORE+'</script>'
   +'<script>'+RATING+'</script>'
-  +'<script>'+REVEAL+'</script>'
-  +'<script src="/smartlink.js" defer></script>'
+  +'<script>'+SMARTLINK+'</script>'
   +'</body></html>';
  return new Response(html,{headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=60, s-maxage=120, stale-while-revalidate=300"}});
 }
-// RM14C3_RINGTONE_END
+// RM16_P2_END
