@@ -1,6 +1,5 @@
 /**
- * RingMang Users — Phase 6 (Home/List) + 7 (Player+Silent DL) + 8 (Search/Filter) + 9 (Share/SEO) + 10B (Ad layer)
- * Public read via RLS. Audio via Edge signed URL. Ads: consent-gated, sandboxed (no allow-same-origin), freq-capped.
+ * RingMang Users
  */
 const { SUPABASE_URL, SUPABASE_ANON_KEY, APP_NAME, PAGE_SIZE } = window.RINGMANG_CONFIG || {};
 const $=(id)=>document.getElementById(id);
