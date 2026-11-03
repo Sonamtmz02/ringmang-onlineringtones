@@ -133,17 +133,16 @@ const Audio_={el:null,ctx:null,srcNode:null,analyser:null,freq:null,useReal:fals
  updateSession(){
   if(!this.currentMeta)return;
   const m=this.currentMeta;
-  document.title=(m.title||"Ringtone")+" — RingMang";
-  if("mediaSession" in navigator && window.MediaMetadata){
+  const fullTitle=(m.title||"Ringtone")+" - "+(m.artist&&m.artist!=="—"?m.artist:"RingMang");
+  document.title=fullTitle;
+  if("mediaSession" in navigator){
    try{
-    navigator.mediaSession.metadata=new window.MediaMetadata({
+    navigator.mediaSession.metadata=new MediaMetadata({
      title:m.title||"RingMang Ringtone",
      artist:(m.artist&&m.artist!=="—"?m.artist:"RingMang"),
-     album:(m.cat&&m.cat!=="—"?m.cat:"Ringtone"),
-     artwork:[
-      {src:location.origin+"/favicon.png",sizes:"96x96",type:"image/png"}
-     ]
+     album:(m.cat&&m.cat!=="—"?m.cat:"Ringtone")
     });
+    navigator.mediaSession.playbackState="playing";
     navigator.mediaSession.setActionHandler("play",()=>this.toggle());
     navigator.mediaSession.setActionHandler("pause",()=>this.toggle());
     navigator.mediaSession.setActionHandler("seekbackward",()=>this.skip(-10));
@@ -152,20 +151,21 @@ const Audio_={el:null,ctx:null,srcNode:null,analyser:null,freq:null,useReal:fals
   }
  },
  setPlaying(on){el.playerToggle.textContent=on?"❚❚":"▶";el.playerShell.classList.toggle("playing",on);el.playerViz.classList.toggle("playing",on);if(this.currentBtn)this.currentBtn.classList.toggle("is-active",on);if(!on)cancelAnimationFrame(this.raf);
-  if(on){this.updateSession();}else{document.title="RingMang — Free Ringtones Download";}
+  if(on){this.updateSession();}
   if("mediaSession" in navigator){navigator.mediaSession.playbackState=on?"playing":"paused";}},
  async load(id,meta,btn){this.init();this.buildViz();
   if(this.currentId===id&&!this.el.paused){this.el.pause();return}
   if(this.currentId===id&&this.el.paused){this.el.play().catch(()=>{});this.currentBtn=btn;return}
   this.currentBtn=btn;this.currentId=id;this.currentMeta=meta;
+  this.updateSession();
   el.playerTitle.textContent=meta.title;el.playerTitle.style.whiteSpace="normal";el.playerTitle.style.overflowWrap="anywhere";el.playerTitle.style.wordBreak="break-word";el.playerArtist.textContent=meta.artist;el.playerCat.textContent=meta.cat;el.playerCur.textContent="0:00";el.playerDur.textContent="0:00";el.playerBar.value=0;
   try{const s=await fetchSigned(id,"play");this.el.src=s.url;this.el.load();this.ensureGraph();if(this.ctx&&this.ctx.state==="suspended")this.ctx.resume();await this.el.play();this.updateSession();}catch(e){showToast("▶ Play भएन: "+e.message);this.setPlaying(false)}},
 toggle(){if(!this.el||!this.el.src)return;if(this.el.paused)this.el.play().catch(()=>{});else this.el.pause()},
  seek(v){if(!this.el)return;this.el.currentTime=parseFloat(v)},vol(v){if(this.el)this.el.volume=parseFloat(v)},
  skip(sec){if(!this.el)return;this.el.currentTime=Math.max(0,Math.min((this.el.duration||0),this.el.currentTime+sec))}};
 let seeking=false;
-function openPlayer(id,meta,btn){Audio_.load(id,meta,btn);el.playerModal.classList.remove("hidden");document.body.style.overflow="hidden"}
-function closePlayer(){el.playerModal.classList.add("hidden");document.body.style.overflow=""}
+function openPlayer(id,meta,btn){Audio_.currentMeta=meta;Audio_.updateSession();Audio_.load(id,meta,btn);el.playerModal.classList.remove("hidden");document.body.style.overflow="hidden"}
+function closePlayer(){el.playerModal.classList.add("hidden");document.body.style.overflow="";if(Audio_.el&&Audio_.el.paused)document.title="RingMang — Free Ringtones Download";}
 
 // ===== Download flow =====
 let dlState="idle",dlCurrentId=null,dlCurrentTitle="";const RING_CIRC=276.46;
