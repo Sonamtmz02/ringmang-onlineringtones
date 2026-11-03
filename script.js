@@ -130,29 +130,38 @@ const Audio_={el:null,ctx:null,srcNode:null,analyser:null,freq:null,useReal:fals
  ensureGraph(){if(this.graphReady)return this.useReal;try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.srcNode=this.ctx.createMediaElementSource(this.el);this.analyser=this.ctx.createAnalyser();this.analyser.fftSize=64;this.freq=new Uint8Array(this.analyser.frequencyBinCount);this.srcNode.connect(this.analyser);this.analyser.connect(this.ctx.destination);this.graphReady=true;this.useReal=true;return true}catch(e){this.useReal=false;return false}},
  startViz(){cancelAnimationFrame(this.raf);const bars=el.playerViz.children;if(this.useReal)el.playerViz.classList.remove("viz-fake");else el.playerViz.classList.add("viz-fake");
   const loop=()=>{if(this.el.paused)return;if(this.useReal&&this.analyser){try{this.analyser.getByteFrequencyData(this.freq);let sum=0;for(let i=0;i<bars.length;i++){const v=this.freq[i%this.freq.length];sum+=v;bars[i].style.height=(12+(v/255)*88)+"%"}if(sum===0){this.useReal=false;el.playerViz.classList.add("viz-fake")}}catch(e){this.useReal=false;el.playerViz.classList.add("viz-fake")}}this.raf=requestAnimationFrame(loop)};this.raf=requestAnimationFrame(loop)},
+ currentMeta:null,
+ updateSession(){
+  if(!this.currentMeta)return;
+  const m=this.currentMeta;
+  document.title=(m.title||"Ringtone")+" — RingMang";
+  if("mediaSession" in navigator && window.MediaMetadata){
+   try{
+    navigator.mediaSession.metadata=new window.MediaMetadata({
+     title:m.title||"RingMang Ringtone",
+     artist:(m.artist&&m.artist!=="—"?m.artist:"RingMang"),
+     album:(m.cat&&m.cat!=="—"?m.cat:"Ringtone"),
+     artwork:[
+      {src:location.origin+"/favicon.png",sizes:"96x96",type:"image/png"}
+     ]
+    });
+    navigator.mediaSession.setActionHandler("play",()=>this.toggle());
+    navigator.mediaSession.setActionHandler("pause",()=>this.toggle());
+    navigator.mediaSession.setActionHandler("seekbackward",()=>this.skip(-10));
+    navigator.mediaSession.setActionHandler("seekforward",()=>this.skip(10));
+   }catch(_){}
+  }
+ },
  setPlaying(on){el.playerToggle.textContent=on?"❚❚":"▶";el.playerShell.classList.toggle("playing",on);el.playerViz.classList.toggle("playing",on);if(this.currentBtn)this.currentBtn.classList.toggle("is-active",on);if(!on)cancelAnimationFrame(this.raf);
+  if(on){this.updateSession();}else{document.title="RingMang — Free Ringtones Download";}
   if("mediaSession" in navigator){navigator.mediaSession.playbackState=on?"playing":"paused";}},
  async load(id,meta,btn){this.init();this.buildViz();
   if(this.currentId===id&&!this.el.paused){this.el.pause();return}
   if(this.currentId===id&&this.el.paused){this.el.play().catch(()=>{});this.currentBtn=btn;return}
-  this.currentBtn=btn;this.currentId=id;el.playerTitle.textContent=meta.title;el.playerTitle.style.whiteSpace="normal";el.playerTitle.style.overflowWrap="anywhere";el.playerTitle.style.wordBreak="break-word";el.playerArtist.textContent=meta.artist;el.playerCat.textContent=meta.cat;el.playerCur.textContent="0:00";el.playerDur.textContent="0:00";el.playerBar.value=0;
-  if("mediaSession" in navigator && window.MediaMetadata){
-   navigator.mediaSession.metadata=new window.MediaMetadata({
-    title:meta.title||"RingMang Ringtone",
-    artist:(meta.artist&&meta.artist!=="—"?meta.artist:"RingMang"),
-    album:(meta.cat&&meta.cat!=="—"?meta.cat:"Ringtone"),
-    artwork:[
-     {src:location.origin+"/favicon.png",sizes:"96x96",type:"image/png"},
-     {src:location.origin+"/icon.svg",sizes:"512x512",type:"image/svg+xml"}
-    ]
-   });
-   navigator.mediaSession.setActionHandler("play",()=>this.toggle());
-   navigator.mediaSession.setActionHandler("pause",()=>this.toggle());
-   navigator.mediaSession.setActionHandler("seekbackward",()=>this.skip(-10));
-   navigator.mediaSession.setActionHandler("seekforward",()=>this.skip(10));
-  }
-  try{const s=await fetchSigned(id,"play");this.el.src=s.url;this.el.load();this.ensureGraph();if(this.ctx&&this.ctx.state==="suspended")this.ctx.resume();await this.el.play()}catch(e){showToast("▶ Play भएन: "+e.message);this.setPlaying(false)}},
- toggle(){if(!this.el||!this.el.src)return;if(this.el.paused)this.el.play().catch(()=>{});else this.el.pause()},
+  this.currentBtn=btn;this.currentId=id;this.currentMeta=meta;
+  el.playerTitle.textContent=meta.title;el.playerTitle.style.whiteSpace="normal";el.playerTitle.style.overflowWrap="anywhere";el.playerTitle.style.wordBreak="break-word";el.playerArtist.textContent=meta.artist;el.playerCat.textContent=meta.cat;el.playerCur.textContent="0:00";el.playerDur.textContent="0:00";el.playerBar.value=0;
+  try{const s=await fetchSigned(id,"play");this.el.src=s.url;this.el.load();this.ensureGraph();if(this.ctx&&this.ctx.state==="suspended")this.ctx.resume();await this.el.play();this.updateSession();}catch(e){showToast("▶ Play भएन: "+e.message);this.setPlaying(false)}},
+toggle(){if(!this.el||!this.el.src)return;if(this.el.paused)this.el.play().catch(()=>{});else this.el.pause()},
  seek(v){if(!this.el)return;this.el.currentTime=parseFloat(v)},vol(v){if(this.el)this.el.volume=parseFloat(v)},
  skip(sec){if(!this.el)return;this.el.currentTime=Math.max(0,Math.min((this.el.duration||0),this.el.currentTime+sec))}};
 let seeking=false;
